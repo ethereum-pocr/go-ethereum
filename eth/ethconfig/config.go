@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	cliquepcr "gitlab.com/saturnproject/externalgrp/pocr/go-ethereum-with-pocr/consensus/cliquepcr"
 )
 
 // FullNodeGPO contains default gasprice oracle settings for full node.
@@ -216,6 +217,8 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	var engine consensus.Engine
 	if chainConfig.Clique != nil {
 		engine = clique.New(chainConfig.Clique, db)
+	} else if chainConfig.CliquePcr != nil {
+		engine = cliquepcr.New(chainConfig.Clique, db)
 	} else {
 		switch config.PowMode {
 		case ethash.ModeFake:

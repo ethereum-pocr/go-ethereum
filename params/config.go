@@ -353,8 +353,9 @@ type ChainConfig struct {
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
 
 	// Various consensus engines
-	Ethash *EthashConfig `json:"ethash,omitempty"`
-	Clique *CliqueConfig `json:"clique,omitempty"`
+	Ethash    *EthashConfig `json:"ethash,omitempty"`
+	Clique    *CliqueConfig `json:"clique,omitempty"`
+	CliquePcr *CliqueConfig `json:"cliquepcr,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
