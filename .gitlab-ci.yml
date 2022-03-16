@@ -1,0 +1,31 @@
+
+stages:          # List of stages for jobs, and their order of execution
+  - build
+#  - test
+  - store
+
+build-geth:       # This job runs in the build stage, which runs first.
+  stage: build
+  image: golang:latest  # use a non alpine image because the deployment in direclty on the ubuntu machine
+  tags:
+    - docker
+  script:
+    - apt-get update
+    - apt-get install -y build-essential
+    - echo "Compiling the code..."
+    - make geth
+  artifacts:
+    paths:
+      - build/bin/geth
+    expire_in: 1 day
+
+save-geth:
+  stage: store
+  image: curlimages/curl:latest
+  tags:
+    - docker
+  dependencies:
+    - build-geth
+  script:
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file build/bin/geth "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/geth/latest/geth"'
+
