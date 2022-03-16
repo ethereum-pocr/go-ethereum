@@ -1,21 +1,21 @@
-package clique
+package cliquepcr
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
-	"fmt"
 )
 
 type TestCase struct {
-	nbNodes int64
+	nbNodes        int64
 	totalFootprint int64
-	footprint int64
-	calc bool
-	shouldFail bool
-	result int64
+	footprint      int64
+	calc           bool
+	shouldFail     bool
+	result         int64
 }
 
-func toInt(v int64) (*int64) {
+func toInt(v int64) *int64 {
 	x := v
 	return &x
 }
@@ -33,14 +33,14 @@ func TestCalcReward(t *testing.T) {
 
 	for index, test := range testCases {
 
-		t.Run(fmt.Sprintf("Test case %v", index), func (t *testing.T) {
+		t.Run(fmt.Sprintf("Test case %v", index), func(t *testing.T) {
 			nbNodes := big.NewInt(test.nbNodes)
 			totalFootprint := big.NewInt(test.totalFootprint)
 			footprint := big.NewInt(test.footprint)
 			if test.calc {
 				avg := float64(totalFootprint.Uint64() / nbNodes.Uint64())
 				ratio := float64(float64(footprint.Uint64()) / avg)
-				test.result = int64(1e+18 / ( ratio + 0.2 ) - 5e+17)
+				test.result = int64(1e+18/(ratio+0.2) - 5e+17)
 				if test.result < 0 {
 					test.result = 0
 				}
@@ -48,16 +48,16 @@ func TestCalcReward(t *testing.T) {
 					test.result = 2e+18
 				}
 			}
-			
+
 			reward, err := CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint)
 			t.Logf("Testing calculation nb=%v total=%v footprint=%v  ==> (%v, %e)", nbNodes, totalFootprint, footprint, reward, err)
-			if err!=nil {
-				if (test.shouldFail) {
+			if err != nil {
+				if test.shouldFail {
 					return
 				}
 				t.Errorf("Unexpected error %v", err)
 			}
-			if (test.shouldFail) {
+			if test.shouldFail {
 				t.Errorf("The calculation should have failed")
 			}
 			if reward.Int64() != test.result {

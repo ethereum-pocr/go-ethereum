@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
+	cliquepcr "github.com/ethereum/go-ethereum/consensus/cliquepcr"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -38,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
-	cliquepcr "gitlab.com/saturnproject/externalgrp/pocr/go-ethereum-with-pocr/consensus/cliquepcr"
 )
 
 // FullNodeGPO contains default gasprice oracle settings for full node.

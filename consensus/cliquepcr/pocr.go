@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package clique implements the proof-of-authority consensus engine.
-package clique
+package cliquepcr
 
 import (
 	"errors"
@@ -35,6 +35,7 @@ import (
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
 var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
+
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var totalCryptoGeneratedAddress = "0x0000000000000000000000000000000000000101"
 var zero = big.NewInt(0)
@@ -53,12 +54,11 @@ func NewPoCR(config *params.CliqueConfig, db ethdb.Database) *PoCR {
 	return pocr
 }
 
-
-// Finalize implements consensus.Engine, ensuring no uncles are set, 
+// Finalize implements consensus.Engine, ensuring no uncles are set,
 // Calculate and give the block reward according to the consensus.
 func (c *PoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	accumulateRewards(c, chain.Config(), state, header, uncles)
-	// Finalize 
+	// Finalize
 	c.Clique.Finalize(chain, header, state, txs, uncles)
 }
 
@@ -84,7 +84,7 @@ func accumulateRewards(c *PoCR, config *params.ChainConfig, state *state.StateDB
 
 	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
-	if err!= nil || blockReward.Sign() == 0 {
+	if err != nil || blockReward.Sign() == 0 {
 		log.Info("No reward for signer", "node", author.String(), "error", err)
 		return
 	}
@@ -98,25 +98,25 @@ func accumulateRewards(c *PoCR, config *params.ChainConfig, state *state.StateDB
 	state.AddBalance(common.HexToAddress(totalCryptoGeneratedAddress), blockReward)
 }
 
-func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error){
+func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return nil, errors.New("cannot support genesis block")
 	}
 	contract := NewCarbonFootPrintContract(address, config, state, header)
 	nbNodes, err := contract.nbNodes()
-	if err!=nil {
+	if err != nil {
 		return nil, err
 	}
 	if nbNodes.Uint64() == 0 {
 		return nil, errors.New("no node in PoCR smart contract")
 	}
 	totalFootprint, err := contract.totalFootprint()
-	if err!=nil {
+	if err != nil {
 		return nil, err
 	}
 	footprint, err := contract.footprint(address)
-	if err!=nil {
+	if err != nil {
 		return nil, err
 	}
 	if footprint.Uint64() == 0 {
@@ -124,16 +124,16 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 	}
 
 	totalCrypto, err := contract.getBalance()
-	if err!=nil {
+	if err != nil {
 		return nil, err
 	}
 
 	reward, err := CalculatePoCRReward(nbNodes, totalFootprint, footprint, totalCrypto)
-	if err!=nil {
+	if err != nil {
 		return nil, err
 	}
 
-	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(),"total",totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
 	return reward, nil
 }
 
@@ -184,7 +184,7 @@ func CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, f
 	// ratio = 1 / (X + 0,2)
 	ratio = ratio.Inv(ratio)
 	// ratio = 1 / (X + 0,2) - 0,5
-	ratio = ratio.Sub(ratio, big.NewRat(5,10))
+	ratio = ratio.Sub(ratio, big.NewRat(5, 10))
 	if ratio.Sign() <= 0 {
 		return big.NewInt(0), nil
 	}
@@ -228,7 +228,6 @@ func CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
 	// L = M / (8 000 000 * 30 / 3) // as integer value
 	// D = 2^L // The divisor : 2 at the power of L
 	// GlobalInflationControl = 1/D // 1; 1/2; 1/4; 1/8 ....
-
 
 	// If there is no crpto created, return 1
 	if M.Cmp(zero) == 0 {
@@ -294,7 +293,7 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 	addressString := ofNode.String()
 	addressString = addressString[2:]
 
-	input := common.Hex2Bytes("79f85816000000000000000000000000"+addressString)
+	input := common.Hex2Bytes("79f85816000000000000000000000000" + addressString)
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
 	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
 	if err != nil {
