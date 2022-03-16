@@ -1,3 +1,4 @@
+
 stages:          # List of stages for jobs, and their order of execution
   - build
 #  - test
@@ -5,15 +6,9 @@ stages:          # List of stages for jobs, and their order of execution
 
 build-geth:       # This job runs in the build stage, which runs first.
   stage: build
-  image: golang:latest 
+  image: golang:latest  # use a non alpine image because the deployment in direclty on the ubuntu machine
   tags:
     - docker
-
- before_script:
-  - mkdir -p "$GOPATH/src/$(dirname $REPO_NAME)"
-  - ln -svf "$CI_PROJECT_DIR" "$GOPATH/src/$REPO_NAME"
-  - cd "$GOPATH/src/$REPO_NAME"
-
   script:
     - apt-get update
     - apt-get install -y build-essential
