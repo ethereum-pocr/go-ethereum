@@ -85,7 +85,7 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	signatures, _ := lru.NewARC(inmemorySignatures)
-
+	engine = clique.New(config, db)
 	_ = engine
 	return &CliquePcr{
 		config:     &conf,
