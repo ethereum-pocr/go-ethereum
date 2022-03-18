@@ -215,10 +215,19 @@ type Config struct {
 func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	var engine consensus.Engine
+	/*
+		// In case need to create a custom config section for CliquePCR, rather than a CliquePCR attribute in
+		// the current Clique
+		if chainConfig.Clique != nil {
+			engine = clique.New(chainConfig.Clique, db)
+		} else if chainConfig.CliquePcr != nil {
+			engine = cliquepcr.New(chainConfig.Clique, db) */
 	if chainConfig.Clique != nil {
-		engine = clique.New(chainConfig.Clique, db)
-	} else if chainConfig.CliquePcr != nil {
-		engine = cliquepcr.New(chainConfig.Clique, db)
+		if chainConfig.Clique.PoCR {
+			engine = cliquepcr.New(chainConfig.Clique, db)
+		} else {
+			engine = clique.New(chainConfig.Clique, db)
+		}
 	} else {
 		switch config.PowMode {
 		case ethash.ModeFake:
