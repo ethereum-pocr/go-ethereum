@@ -21,12 +21,26 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+)
+
+// Clique proof-of-authority protocol constants.
+var (
+	extraSeal = crypto.SignatureLength // Fixed number of extra-data suffix bytes reserved for signer seal
+
+	nonceAuthVote = hexutil.MustDecode("0xffffffffffffffff") // Magic nonce number to vote on adding a new signer
+	nonceDropVote = hexutil.MustDecode("0x0000000000000000") // Magic nonce number to vote on removing a signer.
+
+	uncleHash = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
+
+	diffInTurn = big.NewInt(2) // Block difficulty for in-turn signatures
+	diffNoTurn = big.NewInt(1) // Block difficulty for out-of-turn signatures
 )
 
 // This test case is a repro of an annoying bug that took us forever to catch.
@@ -81,7 +95,7 @@ func TestReimportMirroredState(t *testing.T) {
 		header.Extra = make([]byte, extraVanity+extraSeal)
 		header.Difficulty = diffInTurn
 
-		sig, _ := crypto.Sign(SealHash(header).Bytes(), key)
+		sig, _ := crypto.Sign(engine.SealHash(header).Bytes(), key)
 		copy(header.Extra[len(header.Extra)-extraSeal:], sig)
 		blocks[i] = block.WithSeal(header)
 	}
@@ -114,7 +128,7 @@ func TestReimportMirroredState(t *testing.T) {
 }
 
 func TestSealHash(t *testing.T) {
-	have := SealHash(&types.Header{
+	have := engine.SealHash(&types.Header{
 		Difficulty: new(big.Int),
 		Number:     new(big.Int),
 		Extra:      make([]byte, 32+65),
