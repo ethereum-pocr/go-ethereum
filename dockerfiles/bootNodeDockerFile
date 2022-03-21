@@ -1,0 +1,15 @@
+FROM ubuntu:latest
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get -y update && apt-get -y upgrade 
+RUN \
+    apt-get -y update \
+    && apt install -y golang \
+    && apt-get clean
+RUN echo 'export PATH="/usr/lib/go-1.17/bin:$PATH"' >> /etc/bash.bashrc
+RUN apt-get install -y  build-essential
+ADD . /go-ethereum
+RUN cd /go-ethereum && make geth bootnode
+COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
+COPY --from=builder /go-ethereum/build/bin/bootnode /usr/local/bin/
+EXPOSE 8545 8546 8547 30303 30303/udp
+ENTRYPOINT ["/usr/local/bin/geth"]
