@@ -180,6 +180,12 @@ func (c *CliquePcr) Close() error {
 	return engine.Close()
 }
 
+// Authorize injects a private key into the consensus engine to mint new blocks
+// with.
+func (c *CliquePcr) Authorize(signer common.Address, signFn clique.SignerFn) {
+	engine.Authorize(signer, signFn)
+}
+
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.

@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
+	"github.com/ethereum/go-ethereum/consensus/cliquepcr"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -466,6 +467,10 @@ func (s *Ethereum) StartMining(threads int) error {
 			return fmt.Errorf("etherbase missing: %v", err)
 		}
 		var cli *clique.Clique
+		var clipcr *cliquepcr.CliquePcr
+		if c, ok := s.engine.(*cliquepcr.CliquePcr); ok {
+			clipcr = c
+		}
 		if c, ok := s.engine.(*clique.Clique); ok {
 			cli = c
 		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
@@ -473,7 +478,14 @@ func (s *Ethereum) StartMining(threads int) error {
 				cli = c
 			}
 		}
-		if cli != nil {
+		if clipcr != nil {
+			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+			if wallet == nil || err != nil {
+				log.Error("Etherbase account unavailable locally", "err", err)
+				return fmt.Errorf("signer missing: %v", err)
+			}
+			clipcr.Authorize(eb, wallet.SignData)
+		} else if cli != nil {
 			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
 			if wallet == nil || err != nil {
 				log.Error("Etherbase account unavailable locally", "err", err)
