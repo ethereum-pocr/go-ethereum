@@ -476,6 +476,8 @@ func (s *Ethereum) StartMining(threads int) error {
 		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
 			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
 				cli = c
+			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePcr); ok {
+				clipcr = c
 			}
 		}
 		if clipcr != nil {
