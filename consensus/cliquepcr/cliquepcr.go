@@ -195,6 +195,11 @@ func (c *CliquePcr) Authorize(signer common.Address, signFn clique.SignerFn) {
 // or not), which could be abused to produce different hashes for the same header.
 func CliqueRLP(header *types.Header) []byte {
 	return engine.CliqueRLP(header)
+	/*
+		b := new(bytes.Buffer)
+		encodeSigHeader(b, header)
+		return b.Bytes()
+	*/
 }
 
 // AccumulateRewards credits the coinbase of the given block with the mining
