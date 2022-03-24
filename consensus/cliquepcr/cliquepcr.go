@@ -186,22 +186,6 @@ func (c *CliquePcr) Authorize(signer common.Address, signFn clique.SignerFn) {
 	engine.Authorize(signer, signFn)
 }
 
-// CliqueRLP returns the rlp bytes which needs to be signed for the proof-of-authority
-// sealing. The RLP to sign consists of the entire header apart from the 65 byte signature
-// contained at the end of the extra data.
-//
-// Note, the method requires the extra data to be at least 65 bytes, otherwise it
-// panics. This is done to avoid accidentally using both forms (signature present
-// or not), which could be abused to produce different hashes for the same header.
-func CliqueRLP(header *types.Header) []byte {
-	return engine.CliqueRLP(header)
-	/*
-		b := new(bytes.Buffer)
-		encodeSigHeader(b, header)
-		return b.Bytes()
-	*/
-}
-
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
