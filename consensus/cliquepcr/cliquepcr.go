@@ -77,7 +77,9 @@ type CliquePcr struct {
 	fakeDiff bool // Skip difficulty verifications
 }
 
-func New(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
+func N
+
+ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 	conf := *config
 	if conf.Epoch == 0 {
 		conf.Epoch = epochLength
@@ -86,7 +88,6 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	signatures, _ := lru.NewARC(inmemorySignatures)
 	engine = clique.New(config, db)
-	_ = engine
 	return &CliquePcr{
 		config:     &conf,
 		db:         db,
