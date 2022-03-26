@@ -60,7 +60,7 @@ var totalCryptoGeneratedAddress = "0x0000000000000000000000000000000000000101"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
 
-type CliquePcr struct {
+type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
 
@@ -77,9 +77,7 @@ type CliquePcr struct {
 	fakeDiff bool // Skip difficulty verifications
 }
 
-func N
-
-ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
+func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 	conf := *config
 	if conf.Epoch == 0 {
 		conf.Epoch = epochLength
@@ -88,7 +86,7 @@ ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	signatures, _ := lru.NewARC(inmemorySignatures)
 	engine = clique.New(config, db)
-	return &CliquePcr{
+	return &CliquePoCR{
 		config:     &conf,
 		db:         db,
 		recents:    recents,
@@ -96,14 +94,14 @@ ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 		proposals:  make(map[common.Address]bool)}
 }
 
-func (c *CliquePcr) Author(header *types.Header) (common.Address, error) {
+func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
 	return engine.Author(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
-func (c *CliquePcr) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
+func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
 	return engine.VerifyHeader(chain, header, seal)
 }
 
@@ -111,19 +109,19 @@ func (c *CliquePcr) VerifyHeader(chain consensus.ChainHeaderReader, header *type
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
-func (c *CliquePcr) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
 	return engine.VerifyHeaders(chain, headers, seals)
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
-func (c *CliquePcr) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+func (c *CliquePoCR) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
 	return engine.VerifyUncles(chain, block)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (c *CliquePcr) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	return engine.Prepare(chain, header)
 }
 
@@ -132,7 +130,7 @@ func (c *CliquePcr) Prepare(chain consensus.ChainHeaderReader, header *types.Hea
 //
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (c *CliquePcr) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header) {
 	accumulateRewards(engine, chain.Config(), state, header, uncles)
 	// Finalize
@@ -144,7 +142,7 @@ func (c *CliquePcr) Finalize(chain consensus.ChainHeaderReader, header *types.He
 //
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (c *CliquePcr) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	accumulateRewards(engine, chain.Config(), state, header, uncles)
 	// Finalize block
@@ -156,34 +154,34 @@ func (c *CliquePcr) FinalizeAndAssemble(chain consensus.ChainHeaderReader, heade
 //
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
-func (c *CliquePcr) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+func (c *CliquePoCR) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	return engine.Seal(chain, block, results, stop)
 }
 
 // SealHash returns the hash of a block prior to it being sealed.
-func (c *CliquePcr) SealHash(header *types.Header) common.Hash {
+func (c *CliquePoCR) SealHash(header *types.Header) common.Hash {
 	return engine.SealHash(header)
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (c *CliquePcr) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+func (c *CliquePoCR) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
 	return engine.CalcDifficulty(chain, time, parent)
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
-func (c *CliquePcr) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+func (c *CliquePoCR) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return engine.APIs(chain)
 }
 
 // Close terminates any background threads maintained by the consensus engine.
-func (c *CliquePcr) Close() error {
+func (c *CliquePoCR) Close() error {
 	return engine.Close()
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
-func (c *CliquePcr) Authorize(signer common.Address, signFn clique.SignerFn) {
+func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 	engine.Authorize(signer, signFn)
 }
 

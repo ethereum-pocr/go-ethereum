@@ -467,8 +467,8 @@ func (s *Ethereum) StartMining(threads int) error {
 			return fmt.Errorf("etherbase missing: %v", err)
 		}
 		var cli *clique.Clique
-		var clipcr *cliquepcr.CliquePcr
-		if c, ok := s.engine.(*cliquepcr.CliquePcr); ok {
+		var clipcr *cliquepcr.CliquePoCR
+		if c, ok := s.engine.(*cliquepcr.CliquePoCR); ok {
 			clipcr = c
 		}
 		if c, ok := s.engine.(*clique.Clique); ok {
@@ -476,7 +476,7 @@ func (s *Ethereum) StartMining(threads int) error {
 		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
 			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
 				cli = c
-			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePcr); ok {
+			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePoCR); ok {
 				clipcr = c
 			}
 		}
