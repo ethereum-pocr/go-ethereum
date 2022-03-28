@@ -216,11 +216,11 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 	// If proof-of-authority is requested, set it up
 	var engine consensus.Engine
 	/*
-		// In case need to create a custom config section for CliquePCR, rather than a CliquePCR attribute in
+		// In case need to create a custom config section for cliquepcr, rather than a cliquepcr attribute in
 		// the current Clique
 		if chainConfig.Clique != nil {
 			engine = clique.New(chainConfig.Clique, db)
-		} else if chainConfig.CliquePcr != nil {
+		} else if chainConfig.cliquepcr != nil {
 			engine = cliquepcr.New(chainConfig.Clique, db) */
 	if chainConfig.Clique != nil {
 		if chainConfig.Clique.PoCR {

@@ -48,7 +48,7 @@ const (
 
 // Clique proof-of-authority protocol constants.
 var (
-	engine      *clique.Clique
+	
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes, that could be overrided from default Clique
 )
 
@@ -60,7 +60,7 @@ var totalCryptoGeneratedAddress = "0x0000000000000000000000000000000000000101"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
 
-type CliquePcr struct {
+type cliquepcr struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
 
@@ -75,11 +75,10 @@ type CliquePcr struct {
 
 	// The fields below are for testing only
 	fakeDiff bool // Skip difficulty verifications
+	EngineInstance     *clique.Clique
 }
 
-func N
-
-ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
+func New(config *params.CliqueConfig, db ethdb.Database) *cliquepcr {
 	conf := *config
 	if conf.Epoch == 0 {
 		conf.Epoch = epochLength
@@ -87,44 +86,45 @@ ew(config *params.CliqueConfig, db ethdb.Database) *CliquePcr {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	signatures, _ := lru.NewARC(inmemorySignatures)
-	engine = clique.New(config, db)
-	return &CliquePcr{
+
+	return &cliquepcr{
 		config:     &conf,
 		db:         db,
 		recents:    recents,
 		signatures: signatures,
-		proposals:  make(map[common.Address]bool)}
+		proposals:  make(map[common.Address]bool),
+		EngineInstance: clique.New(config, db)}
 }
 
-func (c *CliquePcr) Author(header *types.Header) (common.Address, error) {
-	return engine.Author(header)
+func (c *cliquepcr) Author(header *types.Header) (common.Address, error) {
+	return c.EngineInstance.Author(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
-func (c *CliquePcr) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
-	return engine.VerifyHeader(chain, header, seal)
+func (c *cliquepcr) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
+	return c.EngineInstance.VerifyHeader(chain, header, seal)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
 // concurrently. The method returns a quit channel to abort the operations and
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
-func (c *CliquePcr) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
-	return engine.VerifyHeaders(chain, headers, seals)
+func (c *cliquepcr) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
-func (c *CliquePcr) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	return engine.VerifyUncles(chain, block)
+func (c *cliquepcr) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	return c.EngineInstance.VerifyUncles(chain, block)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
-func (c *CliquePcr) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
-	return engine.Prepare(chain, header)
+func (c *cliquepcr) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	return c.EngineInstance.Prepare(chain, header)
 }
 
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
@@ -132,11 +132,11 @@ func (c *CliquePcr) Prepare(chain consensus.ChainHeaderReader, header *types.Hea
 //
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (c *CliquePcr) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (c *cliquepcr) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header) {
-	accumulateRewards(engine, chain.Config(), state, header, uncles)
+	accumulateRewards(c, chain.Config(), state, header, uncles)
 	// Finalize
-	engine.Finalize(chain, header, state, txs, uncles)
+	c.EngineInstance.Finalize(chain, header, state, txs, uncles)
 }
 
 // FinalizeAndAssemble runs any post-transaction state modifications (e.g. block
@@ -144,11 +144,11 @@ func (c *CliquePcr) Finalize(chain consensus.ChainHeaderReader, header *types.He
 //
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-func (c *CliquePcr) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
+func (c *cliquepcr) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	accumulateRewards(engine, chain.Config(), state, header, uncles)
+	accumulateRewards(c, chain.Config(), state, header, uncles)
 	// Finalize block
-	return engine.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
+	return c.EngineInstance.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
 
 // Seal generates a new sealing request for the given input block and pushes
@@ -156,47 +156,47 @@ func (c *CliquePcr) FinalizeAndAssemble(chain consensus.ChainHeaderReader, heade
 //
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
-func (c *CliquePcr) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-	return engine.Seal(chain, block, results, stop)
+func (c *cliquepcr) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	return c.EngineInstance.Seal(chain, block, results, stop)
 }
 
 // SealHash returns the hash of a block prior to it being sealed.
-func (c *CliquePcr) SealHash(header *types.Header) common.Hash {
-	return engine.SealHash(header)
+func (c *cliquepcr) SealHash(header *types.Header) common.Hash {
+	return c.EngineInstance.SealHash(header)
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have.
-func (c *CliquePcr) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	return engine.CalcDifficulty(chain, time, parent)
+func (c *cliquepcr) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+	return c.EngineInstance.CalcDifficulty(chain, time, parent)
 }
 
 // APIs returns the RPC APIs this consensus engine provides.
-func (c *CliquePcr) APIs(chain consensus.ChainHeaderReader) []rpc.API {
-	return engine.APIs(chain)
+func (c *cliquepcr) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+	return c.EngineInstance.APIs(chain)
 }
 
 // Close terminates any background threads maintained by the consensus engine.
-func (c *CliquePcr) Close() error {
-	return engine.Close()
+func (c *cliquepcr) Close() error {
+	return c.EngineInstance.Close()
 }
 
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
-func (c *CliquePcr) Authorize(signer common.Address, signFn clique.SignerFn) {
-	engine.Authorize(signer, signFn)
+func (c *cliquepcr) Authorize(signer common.Address, signFn clique.SignerFn) {
+	c.EngineInstance.Authorize(signer, signFn)
 }
 
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
-func accumulateRewards(c *clique.Clique, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+func accumulateRewards(c *cliquepcr, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	// log.Info("AccumulateRewards", "blockNumber", header.Number.String())
 	// Select the correct block reward based on chain progression
 	author, err := c.Author(header)
 	if err != nil {
 		// log.Error("Fail getting the Author of the block")
-		author = c.Signer
+		author = c.EngineInstance.Signer
 	}
 
 	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
