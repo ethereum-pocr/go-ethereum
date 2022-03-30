@@ -422,7 +422,9 @@ func (s *Ethereum) shouldPreserve(header *types.Header) bool {
 	// is A, F and G sign the block of round5 and reject the block of opponents
 	// and in the round6, the last available signer B is offline, the whole
 	// network is stuck.
-	if _, ok := s.engine.(*clique.Clique); ok {
+	if _, ok := s.engine.(*cliquepcr.CliquePoCR); ok {
+		return false
+	} else if _, ok := s.engine.(*clique.Clique); ok {
 		return false
 	}
 	return s.isLocalBlock(header)
@@ -467,8 +469,9 @@ func (s *Ethereum) StartMining(threads int) error {
 			return fmt.Errorf("etherbase missing: %v", err)
 		}
 		var cli *clique.Clique
-		var clipcr *cliquepcr.cliquepcr
-		if c, ok := s.engine.(*cliquepcr.cliquepcr); ok {
+
+		var clipcr *cliquepcr.CliquePoCR
+		if c, ok := s.engine.(*cliquepcr.CliquePoCR); ok {
 			clipcr = c
 		}
 		if c, ok := s.engine.(*clique.Clique); ok {
@@ -476,7 +479,7 @@ func (s *Ethereum) StartMining(threads int) error {
 		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
 			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
 				cli = c
-			} else if c, ok := cl.InnerEngine().(*cliquepcr.cliquepcr); ok {
+			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePoCR); ok {
 				clipcr = c
 			}
 		}
