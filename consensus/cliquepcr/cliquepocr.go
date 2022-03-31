@@ -213,10 +213,24 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	// log.Info("Accumulate Reward", author.Hex(), reward)
 	state.AddBalance(author, blockReward)
 
-	// TODO : AddBalance to a non accessible account to just accrue the total amount of crypto created a
+	// AddBalance to a non accessible account storage to just accrue the total amount of crypto created a
 	// and use this as a control of the monetary creation policy
-	state.AddBalance(common.HexToAddress(totalCryptoGeneratedAddress), blockReward)
+	addTotalCryptoBalance(state, blockReward)
 }
+
+func getTotalCryptoBalance(state *state.StateDB) (*big.Int) {
+	return state.GetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0")).Big()
+}
+
+func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) (*big.Int) {
+	// state.CreateAccount(common.HexToAddress(totalCryptoGeneratedAddress))
+	currentTotal := getTotalCryptoBalance(state)
+	newTotal := big.NewInt(0).Add(currentTotal, reward)
+	state.SetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0"), common.BigToHash(newTotal))
+	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
+	return newTotal
+} 
+
 
 func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
@@ -243,7 +257,8 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 		return nil, errors.New("no footprint for sealer")
 	}
 
-	totalCrypto, err := contract.getBalance()
+	// totalCrypto, err := contract.getBalance()
+	totalCrypto := getTotalCryptoBalance(state)
 	if err != nil {
 		return nil, err
 	}
@@ -381,14 +396,14 @@ func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.Chain
 	return contract
 }
 
-func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
-	return contract.RuntimeConfig.State.GetBalance(common.HexToAddress(totalCryptoGeneratedAddress)), nil
-}
+// func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
+// 	return contract.RuntimeConfig.State.GetBalance(common.HexToAddress(totalCryptoGeneratedAddress)), nil
+// }
 
 func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 	input := common.Hex2Bytes("b6c3dcf8")
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
+	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
 	if err != nil {
 		log.Error("Impossible to get the total carbon footprint", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
@@ -400,7 +415,7 @@ func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
 	input := common.Hex2Bytes("03b2ec98")
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
+	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
 	if err != nil {
 		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
@@ -415,7 +430,7 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 
 	input := common.Hex2Bytes("79f85816000000000000000000000000" + addressString)
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
+	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
 	if err != nil {
 		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
