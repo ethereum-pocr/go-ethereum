@@ -187,6 +187,8 @@ func (c *CliquePoCR) Close() error {
 // with.
 
 func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
+	c.signer = signer
+	c.signFn = signFn
 	c.EngineInstance.Authorize(signer, signFn)
 }
 
@@ -199,9 +201,8 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	author, err := c.Author(header)
 	if err != nil {
 		// log.Error("Fail getting the Author of the block")
-		author = c.EngineInstance.Signer
+		author = c.signer
 	}
-
 	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
 	if err != nil || blockReward.Sign() == 0 {
@@ -218,19 +219,18 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	addTotalCryptoBalance(state, blockReward)
 }
 
-func getTotalCryptoBalance(state *state.StateDB) (*big.Int) {
+func getTotalCryptoBalance(state *state.StateDB) *big.Int {
 	return state.GetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0")).Big()
 }
 
-func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) (*big.Int) {
+func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	// state.CreateAccount(common.HexToAddress(totalCryptoGeneratedAddress))
 	currentTotal := getTotalCryptoBalance(state)
 	newTotal := big.NewInt(0).Add(currentTotal, reward)
 	state.SetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0"), common.BigToHash(newTotal))
 	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
-} 
-
+}
 
 func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
