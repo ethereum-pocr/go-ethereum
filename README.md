@@ -22,6 +22,19 @@ them using your favourite package manager. Once the dependencies are installed, 
 ```shell
 make geth
 ```
+If you need to run a pocr network for testing, install side by side the go-ethereum-with-pocr project as well as the pocr-monorepo project.
+Make sure your project has the following structure
+```shell
+home
+    go-ethereum-with-pocr
+    pocr-monorepo
+```
+
+
+Each time that you make geth, type the command
+```shell
+cp ./build/bin/geth ./../pocr-monorepo/pocr-network/sealer/
+```
 
 or, to build the full suite of utilities:
 
