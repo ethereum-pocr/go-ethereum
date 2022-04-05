@@ -229,7 +229,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 }
 
 func getTotalCryptoBalance(state *state.StateDB) *big.Int {
-	return ReadSessionVariable(sessionVariableTotalPocRCoins)
+	return ReadSessionVariable(sessionVariableTotalPocRCoins, state)
 }
 
 func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
