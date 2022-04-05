@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -55,7 +56,9 @@ var (
 var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
 
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
-var totalCryptoGeneratedAddress = "0x0000000000000000000000000000000000000101"
+var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
+
+var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
 
@@ -92,6 +95,14 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 		signatures:     signatures,
 		proposals:      make(map[common.Address]bool),
 		EngineInstance: clique.New(config, db)}
+}
+
+func (c *CliquePoCR) setSessionVariable(key string, value big.Int, state *state.StateDB) {
+
+	state.SetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key), common.BigToHash(value))
+}
+func (c *CliquePoCR) readSessionVariable(key string, state *state.StateDB) *big.Int {
+	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key)).Big()
 }
 
 func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
@@ -218,19 +229,18 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	addTotalCryptoBalance(state, blockReward)
 }
 
-func getTotalCryptoBalance(state *state.StateDB) (*big.Int) {
+func getTotalCryptoBalance(state *state.StateDB) *big.Int {
 	return state.GetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0")).Big()
 }
 
-func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) (*big.Int) {
+func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	// state.CreateAccount(common.HexToAddress(totalCryptoGeneratedAddress))
-	currentTotal := getTotalCryptoBalance(state)
+	currentTotal := readSessionVariable(sessionVariableTotalPocRCoins)
 	newTotal := big.NewInt(0).Add(currentTotal, reward)
-	state.SetState(common.HexToAddress(totalCryptoGeneratedAddress), common.HexToHash("0x0"), common.BigToHash(newTotal))
+	setSessionVariable(sessionVariableTotalPocRCoins, state)
 	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
-} 
-
+}
 
 func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
