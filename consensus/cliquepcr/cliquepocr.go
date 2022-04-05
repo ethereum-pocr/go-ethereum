@@ -98,11 +98,10 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 }
 
 func SetSessionVariable(key string, value *big.Int, state *state.StateDB) {
-
-	state.SetState(common.HexToAddress(sessionVariablesContractAddress), common.BytesToHash(crypto.Keccak256(key.Bytes()), common.BigToHash(value))
+	state.SetState(common.HexToAddress(sessionVariablesContractAddress), common.BytesToHash(crypto.Keccak256([]byte(key))), common.BigToHash(value))
 }
 func ReadSessionVariable(key string, state *state.StateDB) *big.Int {
-	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key.Bytes())).Big()
+	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), common.BytesToHash(crypto.Keccak256([]byte(key)))).Big()
 }
 
 func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
