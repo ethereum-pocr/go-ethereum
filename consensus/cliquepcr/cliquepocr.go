@@ -97,12 +97,12 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 		EngineInstance: clique.New(config, db)}
 }
 
-func SetSessionVariable(key string, value big.Int, state *state.StateDB) {
+func SetSessionVariable(key string, value *big.Int, state *state.StateDB) {
 
-	state.SetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key), common.BigToHash(value))
+	state.SetState(common.HexToAddress(sessionVariablesContractAddress), common.BytesToHash(crypto.Keccak256(key.Bytes()), common.BigToHash(value))
 }
 func ReadSessionVariable(key string, state *state.StateDB) *big.Int {
-	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key)).Big()
+	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), crypto.Keccak256(key.Bytes())).Big()
 }
 
 func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
@@ -237,7 +237,7 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	// state.CreateAccount(common.HexToAddress(totalCryptoGeneratedAddress))
 	currentTotal := ReadSessionVariable(sessionVariableTotalPocRCoins, state)
 	newTotal := big.NewInt(0).Add(currentTotal, reward)
-	SetSessionVariable(sessionVariableTotalPocRCoins, state)
+	SetSessionVariable(sessionVariableTotalPocRCoins, newTotal, state)
 	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
 }
