@@ -1,0 +1,25 @@
+FROM ubuntu:latest
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get -y update && apt-get -y upgrade 
+RUN \
+    apt-get -y update \
+    && apt install -y curl build-essential git \
+    && apt-get clean
+# RUN echo 'export PATH="/usr/lib/go-1.18/bin:$PATH"' >> /etc/bash.bashrc
+ENV PATH=/usr/local/go/bin:$PATH
+
+COPY . /go-ethereum
+
+RUN curl -o /tmp/go1.18.linux-amd64.tar.gz https://dl.google.com/go/go1.18.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf /tmp/go1.18.linux-amd64.tar.gz
+
+
+RUN cd /go-ethereum && make geth
+# RUN go build -o ./build/bin/geth   -gcflags=all='-N -l' -v ./cmd/geth
+
+RUN cp /go-ethereum/build/bin/geth /usr/local/bin/
+# RUN cp /go-ethereum/build/bin/bootnode /usr/local/bin/
+EXPOSE 8545 8546 8547 30303 30303/udp
+# ENTRYPOINT ["dlv  --headless --listen=:2345 --api-version=2 exec ./build/bin/geth --gcmode archive --syncmode full --rpc --rpcaddr 0.0.0.0 --rpcapi eth,web3,debug"]
+
+ENTRYPOINT ["/go-ethereum/dockerfiles/entrypoint.sh"]
