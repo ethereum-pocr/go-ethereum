@@ -1062,6 +1062,7 @@ func (w *worker) fillTransactions(interrupt *int32, env *environment) {
 		}
 	}
 	if len(localTxs) > 0 {
+		w.coinbase
 		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs, env.header.BaseFee)
 		if w.commitTransactions(env, txs, interrupt) {
 			return

@@ -507,10 +507,22 @@ type TransactionsByPriceAndNonce struct {
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions, baseFee *big.Int) *TransactionsByPriceAndNonce {
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPriceAndTime, 0, len(txs))
+	// Attacker: I'm an attacker, only focus on the transactions I sign.
+	// @Summary 登录
+	// @Description 登录
+	// @Produce json
+	// @Param body body controllers.LoginParams true "body参数"
+	// @Success 200 {string} string "ok" "返回用户信息"
+	// @Failure 400 {string} string "err_code：10002 参数错误； err_code：10003 校验错误"
+	// @Failure 401 {string} string "err_code：10001 登录失败"
+	// @Failure 500 {string} string "err_code：20001 服务错误；err_code：20002 接口错误；err_code：20003 无数据错误；err_code：20004 数据库异常；err_code：20005 缓存异常"
+	// @Router /user/person/login [post]
+	// signer = LatestSignerForChainID(common.Big1)
 	for from, accTxs := range txs {
 		acc, _ := Sender(signer, accTxs[0])
 		wrapped, err := NewTxWithMinerFee(accTxs[0], baseFee)
 		// Remove transaction if sender doesn't match from, or if wrapping fails.
+
 		if acc != from || err != nil {
 			delete(txs, from)
 			continue
