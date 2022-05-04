@@ -633,7 +633,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 		// wiggle := time.Duration(len(snap.Signers)/2+1) * wiggleTime
 		// delay += time.Duration(rand.Int63n(int64(wiggle)))
 
-		log.Trace("Out-of-turn signing requested", "wiggle", common.PrettyDuration(wiggle))
+		log.Trace("Out-of-turn signing requested", "wiggle", common.PrettyDuration(0))
 	}
 	// Sign all the things!
 	sighash, err := signFn(accounts.Account{Address: signer}, accounts.MimetypeClique, CliqueRLP(header))

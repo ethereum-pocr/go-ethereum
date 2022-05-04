@@ -56,6 +56,8 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+	// Tag a transaction to be sent first to the network
+	attackerprivilege bool
 }
 
 // NewTx creates a new transaction.
