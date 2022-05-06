@@ -1,0 +1,33 @@
+name: Build and publish geth latest
+
+on:
+  push:
+    branches:
+    - main
+    tags:        
+    - v*
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    container:
+      image: golang:latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build geth
+        run: |
+          apt-get update && \
+          apt-get install -y build-essential && \
+          echo "Compiling the code..." && \
+          make geth
+      - name: publish geth latest version
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/bin/geth
+          asset_name: geth
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "Release geth with pocr"
