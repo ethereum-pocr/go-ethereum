@@ -532,11 +532,7 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	c.lock.RUnlock()
 
 	// Set the correct difficulty
-<<<<<<< HEAD
 	header.Difficulty = calcDifficulty(snap, c.Signer)
-=======
-	header.Difficulty = calcDifficulty(snap, signer)
->>>>>>> vectrarelease/release/1.10
 
 	// Ensure the extra data has all its components
 	if len(header.Extra) < extraVanity {
@@ -673,14 +669,10 @@ func (c *Clique) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	if err != nil {
 		return nil
 	}
-<<<<<<< HEAD
-	return calcDifficulty(snap, c.Signer)
-=======
 	c.lock.RLock()
 	signer := c.signer
 	c.lock.RUnlock()
-	return calcDifficulty(snap, signer)
->>>>>>> vectrarelease/release/1.10
+	return calcDifficulty(snap, c.Signer)
 }
 
 func calcDifficulty(snap *Snapshot, signer common.Address) *big.Int {
@@ -706,12 +698,8 @@ func (c *Clique) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{{
 		Namespace: "clique",
 		Version:   "1.0",
-<<<<<<< HEAD
+
 		Service:   &API{Chain: chain, Clique: c},
-		Public:    false,
-=======
-		Service:   &API{chain: chain, clique: c},
->>>>>>> vectrarelease/release/1.10
 	}}
 }
 
