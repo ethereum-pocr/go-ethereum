@@ -180,7 +180,7 @@ type Clique struct {
 
 	Signer common.Address // Ethereum address of the signing key
 	signFn SignerFn       // Signer function to authorize hashes with
-	lock   sync.RWMutex   // Protects the signer fields
+	lock   sync.RWMutex   // Protects the signer and proposals fields
 
 	// The fields below are for testing only
 	fakeDiff bool // Skip difficulty verifications
@@ -507,9 +507,8 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	if err != nil {
 		return err
 	}
+	c.lock.RLock()
 	if number%c.config.Epoch != 0 {
-		c.lock.RLock()
-
 		// Gather all the proposals that make sense voting on
 		addresses := make([]common.Address, 0, len(c.proposals))
 		for address, authorize := range c.proposals {
@@ -526,10 +525,18 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 				copy(header.Nonce[:], nonceDropVote)
 			}
 		}
-		c.lock.RUnlock()
 	}
+
+	// Copy signer protected by mutex to avoid race condition
+	signer := c.signer
+	c.lock.RUnlock()
+
 	// Set the correct difficulty
+<<<<<<< HEAD
 	header.Difficulty = calcDifficulty(snap, c.Signer)
+=======
+	header.Difficulty = calcDifficulty(snap, signer)
+>>>>>>> vectrarelease/release/1.10
 
 	// Ensure the extra data has all its components
 	if len(header.Extra) < extraVanity {
@@ -666,7 +673,14 @@ func (c *Clique) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	if err != nil {
 		return nil
 	}
+<<<<<<< HEAD
 	return calcDifficulty(snap, c.Signer)
+=======
+	c.lock.RLock()
+	signer := c.signer
+	c.lock.RUnlock()
+	return calcDifficulty(snap, signer)
+>>>>>>> vectrarelease/release/1.10
 }
 
 func calcDifficulty(snap *Snapshot, signer common.Address) *big.Int {
@@ -692,8 +706,12 @@ func (c *Clique) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return []rpc.API{{
 		Namespace: "clique",
 		Version:   "1.0",
+<<<<<<< HEAD
 		Service:   &API{Chain: chain, Clique: c},
 		Public:    false,
+=======
+		Service:   &API{chain: chain, clique: c},
+>>>>>>> vectrarelease/release/1.10
 	}}
 }
 
