@@ -528,7 +528,8 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	}
 
 	// Copy signer protected by mutex to avoid race condition
-	signer := c.signer
+	Signer := c.Signer
+	_ = Signer
 	c.lock.RUnlock()
 
 	// Set the correct difficulty
@@ -670,7 +671,8 @@ func (c *Clique) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 		return nil
 	}
 	c.lock.RLock()
-	signer := c.signer
+	Signer := c.Signer
+	_ = Signer
 	c.lock.RUnlock()
 	return calcDifficulty(snap, c.Signer)
 }
@@ -699,7 +701,7 @@ func (c *Clique) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 		Namespace: "clique",
 		Version:   "1.0",
 
-		Service:   &API{Chain: chain, Clique: c},
+		Service: &API{Chain: chain, Clique: c},
 	}}
 }
 
