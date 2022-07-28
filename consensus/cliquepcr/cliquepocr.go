@@ -237,7 +237,7 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	currentTotal := ReadSessionVariable(sessionVariableTotalPocRCoins, state)
 	newTotal := big.NewInt(0).Add(currentTotal, reward)
 	SetSessionVariable(sessionVariableTotalPocRCoins, newTotal, state)
-	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
+	// log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
 }
 
@@ -277,7 +277,7 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 		return nil, err
 	}
 
-	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
 	return reward, nil
 }
 
@@ -417,7 +417,7 @@ func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 		log.Error("Impossible to get the total carbon footprint", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
 	} else {
-		log.Info("Total Carbon footprint", "result", common.Bytes2Hex(result))
+		// log.Info("Total Carbon footprint", "result", common.Bytes2Hex(result))
 		return common.BytesToHash(result).Big(), nil
 	}
 }
@@ -429,7 +429,7 @@ func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
 		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
 	} else {
-		log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
+		// log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
 		return common.BytesToHash(result).Big(), nil
 	}
 }
@@ -444,7 +444,7 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, err
 	} else {
-		log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
+		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
 		return common.BytesToHash(result).Big(), nil
 	}
 }
