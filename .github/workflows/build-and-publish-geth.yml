@@ -20,8 +20,9 @@ jobs:
         run: |
           apt-get update && \
           apt-get install -y build-essential && \
-          echo "Compiling the code..." && \
-          make geth
+          echo "Compiling all dependencies, running tests and coverage ..." && \
+          go get golang.org/x/tools/cmd/cover && make all && go test ./... -coverprofile cover.out
+          # make geth
       - name: publish geth latest version
         uses: svenstaro/upload-release-action@v2
         with:
