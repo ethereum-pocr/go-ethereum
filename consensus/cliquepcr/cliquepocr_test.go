@@ -162,5 +162,8 @@ func TestCalculateAcceptNewSealersReward(t *testing.T) {
 
 func TestCalculateGlobalInflationControlFactor(t *testing.T) {
 	var factor, _ = CalculateGlobalInflationControlFactor(big.NewInt(1000000))
-	_ = factor
+	a := big.NewRat(1, 0)
+	if factor.Cmp(a) != 0 {
+		t.Errorf("Expected %d got %d", a, factor)
+	}
 }
