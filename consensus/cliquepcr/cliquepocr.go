@@ -78,6 +78,11 @@ type CliquePoCR struct {
 	EngineInstance *clique.Clique
 }
 
+type CarbonFootprintContract struct {
+	ContractAddress common.Address
+	RuntimeConfig   *runtime.Config
+}
+
 func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 	conf := *config
 	if conf.Epoch == 0 {
@@ -270,7 +275,7 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 		return nil, err
 	}
 
-	reward, err := CalculatePoCRReward(nbNodes, totalFootprint, footprint, totalCrypto)
+	reward, err := rewardComputation.CalculatePoCRReward(nbNodes, totalFootprint, footprint, totalCrypto)
 	if err != nil {
 		return nil, err
 	}
