@@ -59,7 +59,10 @@ var sessionVariablesContractAddress = "0x000000000000000000000000000000000000010
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
-var rewardComputation WPRewardComputation
+var rewardComputation0 WPRewardComputation
+var rewardComputation1 ZScoreRewardComputation
+var rewardComputation2 PercentileRankRewardComputation
+var chosenRewardAlgorithm = 0
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
@@ -275,7 +278,7 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 		return nil, err
 	}
 
-	reward, err := rewardComputation.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
+	reward, err := rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
 	if err != nil {
 		return nil, err
 	}
