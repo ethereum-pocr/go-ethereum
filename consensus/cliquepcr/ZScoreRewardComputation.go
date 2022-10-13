@@ -75,8 +75,45 @@ func (wp *ZScoreRewardComputation) CalculateCarbonFootprintRewardCollection(node
 		_ = sumDiff
 	  }
 
-	  var stdDevSquareRoot = (new(big.Rat).SetFrac(sumDiff, new(big.Int).SetUint64(uint64(n-1))))
-	  stdDevSquareRoot = bigInt.Sqrt(stdDevSquareRoot)
+
+	  f_sumDiff := new(big.Float).SetInt(sumDiff)
+	  f_strDev :=  new(big.Float).Quo(f_sumDiff, new(big.Float).SetInt(big.NewInt(int64(n-1))))
+
+	  // f_strDev := math.Sqrt((f_sumDiff / new(big.Float).SetInt(n-1)))
+
+	  f_footprint := new(big.Float).SetInt(footprint)
+	  
+	  f_zscore := new(big.Float).Quo(new(big.Float).Sub(f_footprint, new(big.Float).SetInt(avg)), f_strDev)
+	  _ = f_zscore
+
+	  // f_zptile := new(big.Float).Quo(f_zscore,
+
+	 /* 
+	  zscore = (self.CFoot - mean) / standard_deviation
+        # zptile is a function that turns a zscoore into a percentile 
+        zptile = .5 * (math.erf(zscore / 2 ** .5) + 1)
+        self.ZScoreRankComputation.CFRankRatio = zptile
+        TotalCRC = sum(np.array(agentList.ZScoreRankComputation.AccumulatedMiningReward))
+        self.ZScoreRankComputation.TotalCRCGenerated = TotalCRC
+        L = TotalCRC / SimulationVariables().InflationDenominator
+        D = pow(SimulationVariables().alpha, L)
+        self.ZScoreRankComputation.CurrentGlobalInflation  = 1/D
+	  */
+	  // bigInt := &big.Int{}
+	  // summDiffSquareRoot := bigInt.Sqrt(sumDiff)
+	  
+	  // var stdDevSquared = (new(big.Rat).SetFrac(sumDiff, new(big.Int).SetUint64(uint64(n-1))))
+	  // bigInt := &big.Int{}
+	  // sqrt := bigInt.Sqrt(stdDevSquared)
+	  // _ = sqrt
+	  
+	  // var Str = `10000000000000000000000000000000000000000000000000000`
+	
+
+	  // value, _ := bigInt.SetString(Str, 10)
+	  // sqrt := bigInt.Sqrt(value)
+	  
+	  // stdDevSquareRoot = bigInt.Sqrt(stdDevSquareRoot)
 	  
 	  // var stdDev,e = new(big.Int), big.NewInt(2)
 

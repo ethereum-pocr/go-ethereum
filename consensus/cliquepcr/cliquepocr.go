@@ -287,57 +287,27 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 	return reward, nil
 }
 
-
-func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) CarbonFootprintContract {
-	contract := CarbonFootprintContract{}
-	contract.ContractAddress = common.HexToAddress(proofOfCarbonReductionContractAddress)
-	block := big.NewInt(0).Sub(header.Number, big.NewInt(1))
-	stateCopy := state.Copy() // necessary to work on the copy of the state when performing a call
-	cfg := runtime.Config{ChainConfig: config, Origin: nodeAddress, GasLimit: 1000000, State: stateCopy, BlockNumber: block}
-	contract.RuntimeConfig = &cfg
-	return contract
+func getSigners()
+{
+	// Retrieve the snapshot needed to verify this header and cache it
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+	if err != nil {
+		return err
+	}
+	// If the block is a checkpoint block, verify the signer list
+	if number%c.config.Epoch == 0 {
+		signers := make([]byte, len(snap.Signers)*common.AddressLength)
+		for i, signer := range snap.signers() {
+			copy(signers[i*common.AddressLength:], signer[:])
+		}
+		extraSuffix := len(header.Extra) - extraSeal
+		if !bytes.Equal(header.Extra[extraVanity:extraSuffix], signers) {
+			return errMismatchingCheckpointSigners
+		}
+	}
 }
 
 // func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
 // 	return contract.RuntimeConfig.State.GetBalance(common.HexToAddress(totalCryptoGeneratedAddress)), nil
 // }
 
-func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
-	input := common.Hex2Bytes("b6c3dcf8")
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the total carbon footprint", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Total Carbon footprint", "result", common.Bytes2Hex(result))
-		return common.BytesToHash(result).Big(), nil
-	}
-}
-func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
-	input := common.Hex2Bytes("03b2ec98")
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
-		return common.BytesToHash(result).Big(), nil
-	}
-}
-func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.Int, error) {
-	addressString := ofNode.String()
-	addressString = addressString[2:]
-
-	input := common.Hex2Bytes("79f85816000000000000000000000000" + addressString)
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
-		return common.BytesToHash(result).Big(), nil
-	}
-}

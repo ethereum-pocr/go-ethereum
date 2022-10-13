@@ -2,6 +2,7 @@ package cliquepcr
 import (
 	"errors"
 	"math/big"
+	"sort"
 )
 // The standard WhitePaper computation
 type PercentileRankRewardComputation struct {
@@ -52,7 +53,12 @@ func (wp *PercentileRankRewardComputation) CalculateGlobalInflationControlFactor
 	return big.NewRat(1, D), nil
 }
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollection(nbNodes *big.Int, nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-	panic("CalculateCarbonFootprintRewardCollection not implemented")
+	
+	sort.Slice(nodesFootprint, func(i, j int) bool {
+		return nodesFootprint[i].Cmp(nodesFootprint[j]) > 0
+	})
+	return nil,nil
+	// sort.Big(nodesFootprint)
 }
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	rewardI:= big.NewInt(0)
