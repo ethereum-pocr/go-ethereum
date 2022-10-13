@@ -63,6 +63,7 @@ var rewardComputation0 WPRewardComputation
 var rewardComputation1 ZScoreRewardComputation
 var rewardComputation2 PercentileRankRewardComputation
 var chosenRewardAlgorithm = 0
+var errUnknownBlock = errors.New("unknown block")
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
@@ -79,6 +80,8 @@ type CliquePoCR struct {
 	// The fields below are for testing only
 	fakeDiff       bool // Skip difficulty verifications
 	EngineInstance *clique.Clique
+	signersList []common.Address
+	signersListLastBlock uint64
 }
 
 type CarbonFootprintContract struct {
@@ -118,6 +121,7 @@ func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
 // given EngineInstance. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
+	
 	return c.EngineInstance.VerifyHeader(chain, header, seal)
 }
 
@@ -127,7 +131,24 @@ func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *typ
 // the input slice).
 
 func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+	go func() {
+		for i, header := range headers {
+			c.buildSealersList(chain, header, headers[:i])
+		}
+	}()
 	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
+}
+
+func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+	if header.Number == nil {
+		return errUnknownBlock
+	}
+	number := header.Number.Uint64()
+	if (c.signersListLastBlock != number) {
+		c.signersList,_ = c.getSigners(chain, header, parents)
+		c.signersListLastBlock = number
+	}
+	return nil
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -287,24 +308,17 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 	return reward, nil
 }
 
-func getSigners()
-{
+func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader,header *types.Header, parents []*types.Header) ([]common.Address, error) {
+	number := header.Number.Uint64()
+
 	// Retrieve the snapshot needed to verify this header and cache it
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
-	if err != nil {
-		return err
-	}
+	snap, err := c.EngineInstance.Snapshot(chain, number-1, header.ParentHash, parents)
 	// If the block is a checkpoint block, verify the signer list
 	if number%c.config.Epoch == 0 {
-		signers := make([]byte, len(snap.Signers)*common.AddressLength)
-		for i, signer := range snap.signers() {
-			copy(signers[i*common.AddressLength:], signer[:])
-		}
-		extraSuffix := len(header.Extra) - extraSeal
-		if !bytes.Equal(header.Extra[extraVanity:extraSuffix], signers) {
-			return errMismatchingCheckpointSigners
-		}
+		signersArray := snap.GetSigners()
+		return signersArray, err;
 	}
+	return nil, errors.New("Invalid Epoch when getting Signers list")
 }
 
 // func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {

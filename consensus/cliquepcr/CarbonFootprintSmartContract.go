@@ -56,6 +56,8 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 		return common.BytesToHash(result).Big(), nil
 	}
 }
+
+
 // The allFootprints return the addess and the CF of a sealer index 0, and returns false if there is no more to parse, true otherwise
 // func (contract *CarbonFootprintContract) allFootprints(index big.Int) (common.Address, big.Int, bool,  error) {
 //	return common.Address,nil,nil,nil
