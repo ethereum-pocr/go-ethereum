@@ -346,14 +346,14 @@ func (c *Clique) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 		return err
 	}
 	// Retrieve the snapshot needed to verify this header and cache it
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+	snap, err := c.Snapshot(chain, number-1, header.ParentHash, parents)
 	if err != nil {
 		return err
 	}
 	// If the block is a checkpoint block, verify the signer list
 	if number%c.config.Epoch == 0 {
 		signers := make([]byte, len(snap.Signers)*common.AddressLength)
-		for i, signer := range snap.signers() {
+		for i, signer := range snap.GetSigners() {
 			copy(signers[i*common.AddressLength:], signer[:])
 		}
 		extraSuffix := len(header.Extra) - extraSeal
@@ -366,7 +366,7 @@ func (c *Clique) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 }
 
 // snapshot retrieves the authorization snapshot at a given point in time.
-func (c *Clique) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+func (c *Clique) Snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers []*types.Header
@@ -503,7 +503,7 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 	number := header.Number.Uint64()
 	// Assemble the voting snapshot to check which votes make sense
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	snap, err := c.Snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	header.Extra = header.Extra[:extraVanity]
 
 	if number%c.config.Epoch == 0 {
-		for _, signer := range snap.signers() {
+		for _, signer := range snap.GetSigners() {
 			header.Extra = append(header.Extra, signer[:]...)
 		}
 	}
@@ -611,7 +611,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	c.lock.RUnlock()
 
 	// Bail out if we're unauthorized to sign a block
-	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	snap, err := c.Snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
@@ -666,7 +666,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 // * DIFF_NOTURN(2) if BLOCK_NUMBER % SIGNER_COUNT != SIGNER_INDEX
 // * DIFF_INTURN(1) if BLOCK_NUMBER % SIGNER_COUNT == SIGNER_INDEX
 func (c *Clique) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
-	snap, err := c.snapshot(chain, parent.Number.Uint64(), parent.Hash(), nil)
+	snap, err := c.Snapshot(chain, parent.Number.Uint64(), parent.Hash(), nil)
 	if err != nil {
 		return nil
 	}

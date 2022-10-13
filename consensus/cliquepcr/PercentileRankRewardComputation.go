@@ -52,7 +52,7 @@ func (wp *PercentileRankRewardComputation) CalculateGlobalInflationControlFactor
 	}
 	return big.NewRat(1, D), nil
 }
-func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollection(nbNodes *big.Int, nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
+func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	
 	sort.Slice(nodesFootprint, func(i, j int) bool {
 		return nodesFootprint[i].Cmp(nodesFootprint[j]) > 0

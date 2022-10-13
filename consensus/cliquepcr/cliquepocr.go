@@ -239,7 +239,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 		author = c.EngineInstance.Signer
 	}
 
-	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
+	blockReward, err := calcCarbonFootprintReward(c, author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
 	if err != nil || blockReward.Sign() == 0 {
 		log.Info("No reward for signer", "node", author.String(), "error", err)
@@ -268,7 +268,7 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	return newTotal
 }
 
-func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
+func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return nil, errors.New("cannot support genesis block")
@@ -298,12 +298,31 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 	if err != nil {
 		return nil, err
 	}
-
-	reward, err := rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
-	if err != nil {
-		return nil, err
+	var a []*big.Int
+	var reward *big.Int
+	_ = reward
+	var rewardError error
+	_ = rewardError
+	switch chosenRewardAlgorithm {
+    case 0:
+        reward, rewardError = rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
+    case 1:
+        
+		for i, signerAddress := range c.signersList {
+			a[i], _ = contract.footprint(signerAddress)
+		}
+		reward, rewardError = rewardComputation1.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
+    case 2:
+        for i, signerAddress := range c.signersList {
+			a[i], _ = contract.footprint(signerAddress)
+		}
+		reward, rewardError = rewardComputation2.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
+	default:
+		reward, rewardError = rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
+    }
+	if rewardError != nil {
+		return nil, rewardError
 	}
-
 	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
 	return reward, nil
 }
