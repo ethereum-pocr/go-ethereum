@@ -146,7 +146,7 @@ func TestCarbonFootprintReward(t *testing.T) {
 	}
 }
 
-func TestCalculateAcceptNewSealersReward(t *testing.T) {
+func TestCalculateAcceptNewSealersRewardWP(t *testing.T) {
 	var rewardComputation WPRewardComputation
 	var reward, _ = rewardComputation.CalculateAcceptNewSealersReward(big.NewInt(10))
 	a := big.NewInt(3000000000000000000)
@@ -155,6 +155,23 @@ func TestCalculateAcceptNewSealersReward(t *testing.T) {
 	}
 }
 
+func TestCalculateAcceptNewSealersRewardZSCORE(t *testing.T) {
+	var rewardComputation ZScoreRewardComputation
+	var reward, _ = rewardComputation.CalculateAcceptNewSealersReward(big.NewInt(10))
+	a := big.NewInt(3000000000000000000)
+	if reward.Uint64() != a.Uint64() {
+		t.Errorf("Expected %d got %d", a, reward)
+	}
+}
+
+func TestCalculateAcceptNewSealersRewardPERCENTILE(t *testing.T) {
+	var rewardComputation PercentileRankRewardComputation
+	var reward, _ = rewardComputation.CalculateAcceptNewSealersReward(big.NewInt(10))
+	a := big.NewInt(3000000000000000000)
+	if reward.Uint64() != a.Uint64() {
+		t.Errorf("Expected %d got %d", a, reward)
+	}
+}
 func TestCalculateGlobalInflationControlFactor(t *testing.T) {
 	var rewardComputation WPRewardComputation
 	var factor, _ = rewardComputation.CalculateGlobalInflationControlFactor(big.NewInt(1000000))
