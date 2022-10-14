@@ -69,19 +69,15 @@ require (
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
-	github.com/cilium/ebpf v0.9.3 // indirect
 	github.com/deepmap/oapi-codegen v1.8.2 // indirect
-	github.com/go-delve/delve v1.9.1 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210311194329-9aa0e372d097 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
-	github.com/spf13/cobra v1.6.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
-	go.starlark.net v0.0.0-20221010140840-6bf6f0955179 // indirect
-	golang.org/x/arch v0.0.0-20220927172834-6a65923eb742 // indirect
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 )

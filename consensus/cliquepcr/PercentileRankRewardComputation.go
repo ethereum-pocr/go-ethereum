@@ -3,6 +3,7 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+	"math"
 )
 // The standard WhitePaper computation
 type PercentileRankRewardComputation struct {
@@ -52,6 +53,13 @@ func (wp *PercentileRankRewardComputation) CalculateGlobalInflationControlFactor
 	}
 	return big.NewRat(1, D), nil
 }
+/*
+	Percentile Rank Formula:
+	PR% = (L + ( 0.5 x S )) / N Where,
+	L = Number of below rank,
+	S = Number of same rank,
+	N = Total numbers.
+*/
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	if footprint.Cmp(zero) <= 0 {
 		return nil, errors.New("cannot proceed with zero or negative footprint")
@@ -59,8 +67,28 @@ func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollect
 	sort.Slice(nodesFootprint, func(i, j int) bool {
 		return nodesFootprint[i].Cmp(nodesFootprint[j]) > 0
 	})
-	return nil,nil
-	// sort.Big(nodesFootprint)
+	var L int
+	var S int
+	N := len(nodesFootprint)
+	for i := 0; i < N; i++ {
+        if (nodesFootprint[i].Cmp(footprint)==-1) { 
+			L++ 
+		} else if (nodesFootprint[i].Cmp(footprint)==-0) { 
+			S++ 
+		}
+    }
+	var rank float64
+	rank = (float64(L) + 0.5*float64(S))/float64(N)
+	baseReward := ((2/(1+rank)))-1
+	globalInflationFactor, errorGIF := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
+	if (errorGIF != nil) {
+		return nil, errorGIF
+	}
+	gif_Float, isExact := globalInflationFactor.Float64()
+	  _ = isExact
+	reward := baseReward*float64(N)*gif_Float
+	result := big.NewInt(int64(math.Round(reward)))
+	return result,nil
 }
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	panic("CalculateCarbonFootprintReward not implemented")
