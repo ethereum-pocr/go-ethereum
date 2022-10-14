@@ -35,7 +35,6 @@ The go-ethereum project is documented using the godoc package
 ```shell
 sudo apt install golang-golang-x-tools
 go get golang.org/x/tools/cmd/godoc
-go get golang.org/x/tools/cmd/godoc
 ```       
 and then look at the go-ethereum package
 ## Executables
