@@ -28,13 +28,22 @@ or, to build the full suite of utilities:
 ```shell
 make all
 ```
+## Code documentation
 
+The go-ethereum project is documented using the godoc package
+
+```shell
+sudo apt install golang-golang-x-tools
+go get golang.org/x/tools/cmd/godoc
+go get golang.org/x/tools/cmd/godoc
+```       
+and then look at the go-ethereum package
 ## Executables
 
 The go-ethereum project comes with several wrappers/executables found in the `cmd`
 directory.
 
-|    Command    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+|    Command    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | :-----------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 |  **`geth`**   | Our main Ethereum CLI client. It is the entry point into the Ethereum network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the Ethereum network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `geth --help` and the [CLI page](https://geth.ethereum.org/docs/interface/command-line-options) for command line options.          |
 |   `clef`    | Stand-alone signing tool, which can be used as a backend signer for `geth`.  |
