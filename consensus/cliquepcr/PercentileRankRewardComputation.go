@@ -53,7 +53,9 @@ func (wp *PercentileRankRewardComputation) CalculateGlobalInflationControlFactor
 	return big.NewRat(1, D), nil
 }
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-	
+	if footprint.Cmp(zero) <= 0 {
+		return nil, errors.New("cannot proceed with zero or negative footprint")
+	}
 	sort.Slice(nodesFootprint, func(i, j int) bool {
 		return nodesFootprint[i].Cmp(nodesFootprint[j]) > 0
 	})
@@ -61,53 +63,5 @@ func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollect
 	// sort.Big(nodesFootprint)
 }
 func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-	rewardI:= big.NewInt(0)
-	if nbNodes.Cmp(zero) == 0 {
-		return nil, errors.New("cannot average with zero node")
-	}
-	if totalFootprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative total footprint")
-	}
-	if footprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative footprint")
-	}
-	// average = totalFootprint / nbNodes
-	average := new(big.Rat).SetFrac(totalFootprint, nbNodes)
-	// ratio = nbNodes / totalFootprint
-	ratio := new(big.Rat).Inv(average)
-	// ratio = footprint * (nbNodes / totalFootprint) = X
-	ratio = ratio.Mul(ratio, new(big.Rat).SetInt(footprint))
-	// ratio = X + 0,2
-	ratio = ratio.Add(ratio, big.NewRat(2, 10))
-	// ratio = 1 / (X + 0,2)
-	ratio = ratio.Inv(ratio)
-	// ratio = 1 / (X + 0,2) - 0,5
-	ratio = ratio.Sub(ratio, big.NewRat(5, 10))
-	// reward = 1 CTC (10^18 Wei)
-	reward := new(big.Rat).SetInt(CTCUnit)
-	// reward = ratio * CTC unit
-	reward = reward.Mul(reward, ratio)
-	// convert to big.Int
-	if ratio.Sign() <= 0 {
-		rewardI =  big.NewInt(0)
-	} else
-	{
-		rewardI = new(big.Int).Quo(reward.Num(), reward.Denom())
-	}
-	// cap to 2 CTC units
-	cap := big.NewInt(2)
-	cap = cap.Mul(cap, CTCUnit)
-	if rewardI.Cmp(cap) > 0 {
-		rewardI = cap
-	}
-	infl, err := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
-	if err != nil {
-		return nil, err
-	}
-	// Reward(n, b) = CarbonReduction(n) * N * GlobalInflationControl(b)
-	rew := new(big.Rat).SetInt(rewardI)
-	rew = rew.Mul(rew, new(big.Rat).SetInt(nbNodes))
-	rew = rew.Mul(rew, infl)
-	rewI := new(big.Int).Quo(rew.Num(), rew.Denom())
-	return rewI, nil
+	panic("CalculateCarbonFootprintReward not implemented")
 }

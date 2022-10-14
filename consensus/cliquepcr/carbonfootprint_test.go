@@ -10,6 +10,7 @@ type TestCase struct {
 	nbNodes        int64
 	totalFootprint int64
 	footprint      int64
+	totalCRC       int64
 	calc           bool
 	shouldFail     bool
 	result         int64
@@ -22,14 +23,14 @@ func toInt(v int64) *int64 {
 
 func TestCalcReward(t *testing.T) {
 	testCases := make([]TestCase, 0, 100)
-	testCases = append(testCases, TestCase{10, 200000, 1000, true, false, 0})
-	testCases = append(testCases, TestCase{10, 200000, 0, true, true, 0})
-	testCases = append(testCases, TestCase{10, 0, 1000, true, true, 0})
-	testCases = append(testCases, TestCase{0, 20000, 1000, false, true, 0})
-	testCases = append(testCases, TestCase{10, 200000, -1000, false, true, 0})
-	testCases = append(testCases, TestCase{10, 200000, 10000000, true, false, 0})
-	testCases = append(testCases, TestCase{10, 200000, 1, true, false, 0})
-	testCases = append(testCases, TestCase{10, 1e+8, 1, true, false, 1})
+	testCases = append(testCases, TestCase{10, 200000, 1000, 8e+7, true, false, 0})
+	testCases = append(testCases, TestCase{10, 200000, 0, 8e+7, true, true, 0})
+	testCases = append(testCases, TestCase{10, 0, 1000, 8e+7, true, true, 0})
+	testCases = append(testCases, TestCase{0, 20000, 1000, 8e+7, false, true, 0})
+	testCases = append(testCases, TestCase{10, 200000, -1000, 8e+7, false, true, 0})
+	testCases = append(testCases, TestCase{10, 200000, 10000000, 8e+7, true, false, 0})
+	testCases = append(testCases, TestCase{10, 200000, 1, 8e+7, true, false, 0})
+	testCases = append(testCases, TestCase{10, 1e+8, 1, 8e+7, true, false, 1})
 
 	for index, test := range testCases {
 
@@ -37,6 +38,7 @@ func TestCalcReward(t *testing.T) {
 			nbNodes := big.NewInt(test.nbNodes)
 			totalFootprint := big.NewInt(test.totalFootprint)
 			footprint := big.NewInt(test.footprint)
+			totalCRC := big.NewInt(test.totalCRC)
 			if test.calc {
 				avg := float64(totalFootprint.Uint64() / nbNodes.Uint64())
 				ratio := float64(float64(footprint.Uint64()) / avg)
@@ -48,8 +50,9 @@ func TestCalcReward(t *testing.T) {
 					test.result = 2e+18
 				}
 			}
-
-			reward, err := CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint)
+			var rewardComputation WPRewardComputation
+			// (nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int)
+			reward, err := rewardComputation.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint,totalCRC)
 			t.Logf("Testing calculation nb=%v total=%v footprint=%v  ==> (%v, %e)", nbNodes, totalFootprint, footprint, reward, err)
 			if err != nil {
 				if test.shouldFail {

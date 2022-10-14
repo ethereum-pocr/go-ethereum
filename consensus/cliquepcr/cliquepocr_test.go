@@ -136,16 +136,10 @@ func TestReimportMirroredState(t *testing.T) {
 	}
 }
 
-func TestPocrReward(t *testing.T) {
-	var reward, _ = CalculatePoCRReward(big.NewInt(3), big.NewInt(600), big.NewInt(10), big.NewInt(100))
-	a := big.NewInt(6000000000000000000)
-	if reward.Uint64() != a.Uint64() {
-		t.Errorf("Expected %d got %d", a, reward)
-	}
-}
 
 func TestCarbonFootprintReward(t *testing.T) {
-	var reward, _ = CalculateCarbonFootprintReward(big.NewInt(3), big.NewInt(600), big.NewInt(10))
+	var rewardComputation WPRewardComputation
+	var reward, _ = rewardComputation.CalculateCarbonFootprintReward(big.NewInt(3), big.NewInt(600), big.NewInt(10), big.NewInt(8e+7))
 	a := big.NewInt(2000000000000000000)
 	if reward.Uint64() != a.Uint64() {
 		t.Errorf("Expected %d got %d", a, reward)
@@ -153,7 +147,8 @@ func TestCarbonFootprintReward(t *testing.T) {
 }
 
 func TestCalculateAcceptNewSealersReward(t *testing.T) {
-	var reward, _ = CalculateAcceptNewSealersReward(big.NewInt(10))
+	var rewardComputation WPRewardComputation
+	var reward, _ = rewardComputation.CalculateAcceptNewSealersReward(big.NewInt(10))
 	a := big.NewInt(3000000000000000000)
 	if reward.Uint64() != a.Uint64() {
 		t.Errorf("Expected %d got %d", a, reward)
@@ -161,9 +156,12 @@ func TestCalculateAcceptNewSealersReward(t *testing.T) {
 }
 
 func TestCalculateGlobalInflationControlFactor(t *testing.T) {
-	var factor, _ = CalculateGlobalInflationControlFactor(big.NewInt(1000000))
+	var rewardComputation WPRewardComputation
+	var factor, _ = rewardComputation.CalculateGlobalInflationControlFactor(big.NewInt(1000000))
 	a := big.NewRat(1, 0)
 	if factor.Cmp(a) != 0 {
-		t.Errorf("Expected %d got %d", a, factor)
+		x, _ := a.Float64(); 
+		y, _ := factor.Float64(); 
+		t.Errorf("Expected %20.6f\n got %20.6f\n", x, y)
 	}
 }

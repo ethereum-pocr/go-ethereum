@@ -1,5 +1,6 @@
 package cliquepcr
 import (
+	"errors"
 	"math/big"
 	"math"
 )
@@ -53,6 +54,9 @@ func (wp *ZScoreRewardComputation) CalculateGlobalInflationControlFactor(M *big.
 }
 // There is no special convention for BigInt units for digits after comma
 func (wp *ZScoreRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
+	  if footprint.Cmp(zero) <= 0 {
+	      return nil, errors.New("cannot proceed with zero or negative footprint")
+	  }
 	  // size of the array
 	  n := len(nodesFootprint)
 	  // declaring a variable
@@ -62,6 +66,9 @@ func (wp *ZScoreRewardComputation) CalculateCarbonFootprintRewardCollection(node
 	  // array using for loop
 	  for i := 0; i < n; i++ {
 		  sumCF = sumCF.Add(sumCF, nodesFootprint[i])
+	  }
+	  if sumCF.Cmp(zero) <= 0 {
+		return nil, errors.New("cannot proceed with zero or negative total footprint")
 	  }
 	  avg := new(big.Int).Div(sumCF, new(big.Int).SetUint64(uint64(n))) 
 	  var diffSquared []*big.Int
