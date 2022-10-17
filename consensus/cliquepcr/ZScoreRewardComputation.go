@@ -30,8 +30,9 @@ func (wp *ZScoreRewardComputation) CalculateAcceptNewSealersReward(nbNodes *big.
 	rewI := new(big.Int).Quo(rew.Num(), rew.Denom())
 	return rewI, nil
 }
+
 // Public function for auditing, but used internally only
-func (wp *ZScoreRewardComputation) CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error){
+func (wp *ZScoreRewardComputation) CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
 	// L = M / (8 000 000 * 30 / 3) // as integer value
 	// D = 2^L // The divisor : 2 at the power of L
 	// GlobalInflationControl = 1/D // 1; 1/2; 1/4; 1/8 ....
@@ -40,18 +41,20 @@ func (wp *ZScoreRewardComputation) CalculateGlobalInflationControlFactor(M *big.
 	if M.Cmp(zero) == 0 {
 		return big.NewRat(1, 1), nil
 	}
-	C := big.NewInt(8_000_000 * 30 / 3)
-	C = C.Mul(C, CTCUnit)
+	// L = TotalCRC / SimulationVariables().InflationDenominator
+	// D = pow(SimulationVariables().alpha, L)
+	// self.StandardWhitePaperComputation.CurrentGlobalInflation  = 1/D
+	C := big.NewInt(100000)
+	// C = C.Mul(C, CTCUnit)
 	L := new(big.Rat).SetFrac(M, C)
+
 	L2 := new(big.Int).Quo(L.Num(), L.Denom()).Uint64()
-	// D = 2^L
-	D := int64(1) << L2
-	// log.Info("Trace CalculateGlobalInflationControlFactor", "M", M, "L2", L2, "D", D)
-	if D == 0 { // The divisor has reached such a large amount (2^63) than the shift gave 0, So Dividing by a very large number is equivalent to 0
-		return big.NewRat(0, 1), nil
-	}
-	return big.NewRat(1, D), nil
+
+	res := math.Pow(1.5, float64(L2))
+	return big.NewRat(1, int64(res)), nil
 }
+
+
 // There is no special convention for BigInt units for digits after comma
 func (wp *ZScoreRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	  if footprint.Cmp(zero) <= 0 {

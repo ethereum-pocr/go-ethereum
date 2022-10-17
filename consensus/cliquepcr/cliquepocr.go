@@ -281,7 +281,6 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	if nbNodes.Uint64() == 0 {
 		return nil, errors.New("no node in PoCR smart contract")
 	}
-	totalFootprint, err := contract.totalFootprint()
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +304,7 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	_ = rewardError
 	switch chosenRewardAlgorithm {
     case 0:
-        reward, rewardError = rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
+        reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
     case 1:
         
 		for i, signerAddress := range c.signersList {
@@ -318,7 +317,7 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 		}
 		reward, rewardError = rewardComputation2.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
 	default:
-		reward, rewardError = rewardComputation0.CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint, totalCrypto)
+		reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
     }
 	if rewardError != nil {
 		return nil, rewardError
