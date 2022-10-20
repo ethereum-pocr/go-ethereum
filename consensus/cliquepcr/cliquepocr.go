@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"sync"
 	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
@@ -54,6 +55,7 @@ var (
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
 var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
+
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
@@ -64,6 +66,7 @@ var rewardComputation1 ZScoreRewardComputation
 var rewardComputation2 PercentileRankRewardComputation
 var chosenRewardAlgorithm = 0
 var errUnknownBlock = errors.New("unknown block")
+
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
@@ -78,9 +81,9 @@ type CliquePoCR struct {
 	lock   sync.RWMutex    // Protects the signer fields
 
 	// The fields below are for testing only
-	fakeDiff       bool // Skip difficulty verifications
-	EngineInstance *clique.Clique
-	signersList []common.Address
+	fakeDiff             bool // Skip difficulty verifications
+	EngineInstance       *clique.Clique
+	signersList          []common.Address
 	signersListLastBlock uint64
 }
 
@@ -121,7 +124,7 @@ func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
 // given EngineInstance. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
-	
+
 	return c.EngineInstance.VerifyHeader(chain, header, seal)
 }
 
@@ -144,8 +147,8 @@ func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header 
 		return errUnknownBlock
 	}
 	number := header.Number.Uint64()
-	if (c.signersListLastBlock != number) {
-		c.signersList,_ = c.getSigners(chain, header, parents)
+	if c.signersListLastBlock != number {
+		c.signersList, _ = c.getSigners(chain, header, parents)
 		c.signersListLastBlock = number
 	}
 	return nil
@@ -235,7 +238,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	// Select the correct block reward based on chain progression
 	author, err := c.Author(header)
 	if err != nil {
-		// log.Error("Fail getting the Author of the block")
+		log.Error("Fail getting the Author of the block")
 		author = c.EngineInstance.Signer
 	}
 
@@ -247,7 +250,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	}
 	// Accumulate the rewards for the miner and any included uncles
 	// reward := new(big.Int).Set(blockReward)
-	// log.Info("Accumulate Reward", author.Hex(), reward)
+	log.Info("Accumulate Reward", author.Hex(), blockReward)
 	state.AddBalance(author, blockReward)
 
 	// AddBalance to a non accessible account storage to just accrue the total amount of crypto created a
@@ -264,7 +267,7 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	currentTotal := ReadSessionVariable(sessionVariableTotalPocRCoins, state)
 	newTotal := big.NewInt(0).Add(currentTotal, reward)
 	SetSessionVariable(sessionVariableTotalPocRCoins, newTotal, state)
-	// log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
+	log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
 }
 
@@ -303,30 +306,30 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	var rewardError error
 	_ = rewardError
 	switch chosenRewardAlgorithm {
-    case 0:
-        reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
-    case 1:
-        
+	case 0:
+		reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
+	case 1:
+
 		for i, signerAddress := range c.signersList {
 			a[i], _ = contract.footprint(signerAddress)
 		}
 		reward, rewardError = rewardComputation1.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
-    case 2:
-        for i, signerAddress := range c.signersList {
+	case 2:
+		for i, signerAddress := range c.signersList {
 			a[i], _ = contract.footprint(signerAddress)
 		}
 		reward, rewardError = rewardComputation2.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
 	default:
 		reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
-    }
+	}
 	if rewardError != nil {
 		return nil, rewardError
 	}
-	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "nb", nbNodes, "footprint", footprint, "reward", reward)
 	return reward, nil
 }
 
-func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader,header *types.Header, parents []*types.Header) ([]common.Address, error) {
+func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
 	number := header.Number.Uint64()
 
 	// Retrieve the snapshot needed to verify this header and cache it
@@ -334,7 +337,7 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader,header *types.
 	// If the block is a checkpoint block, verify the signer list
 	if number%c.config.Epoch == 0 {
 		signersArray := snap.GetSigners()
-		return signersArray, err;
+		return signersArray, err
 	}
 	return nil, errors.New("Invalid Epoch when getting Signers list")
 }
@@ -342,4 +345,3 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader,header *types.
 // func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
 // 	return contract.RuntimeConfig.State.GetBalance(common.HexToAddress(totalCryptoGeneratedAddress)), nil
 // }
-
