@@ -65,7 +65,10 @@ var CTCUnit = big.NewInt(1e+18)
 var rewardComputation0 WPRewardComputation
 var rewardComputation1 ZScoreRewardComputation
 var rewardComputation2 PercentileRankRewardComputation
-var chosenRewardAlgorithm = 0
+var raceRankComputation RaceRankComputation
+
+// The race rank computation is the chosen algorithm
+var chosenRewardAlgorithm = 3
 var errUnknownBlock = errors.New("unknown block")
 
 type CliquePoCR struct {
@@ -321,6 +324,11 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 			a[i], _ = contract.footprint(signerAddress)
 		}
 		reward, rewardError = rewardComputation2.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
+	case 3:
+		for i, signerAddress := range c.signersList {
+			a[i], _ = contract.footprint(signerAddress)
+		}
+		reward, rewardError = raceRankComputation.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
 	default:
 		reward, rewardError = rewardComputation0.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
 	}

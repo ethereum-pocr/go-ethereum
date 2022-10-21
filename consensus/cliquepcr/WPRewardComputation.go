@@ -56,7 +56,26 @@ func (wp *WPRewardComputation) CalculateGlobalInflationControlFactor(M *big.Int)
 	return big.NewRat(1, int64(res)), nil
 }
 func (wp *WPRewardComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-	panic("CalculateCarbonFootprintRewardCollection not implemented")
+	if footprint.Cmp(zero) <= 0 {
+		return nil, errors.New("cannot proceed with zero or negative footprint")
+	}
+	// size of the array
+	n := len(nodesFootprint)
+	n_big := big.NewInt(int64(n))
+	// declaring a variable
+	// to store the sum
+	var sumCF = big.NewInt(0)
+	// traversing through the
+	// array using for loop
+	for i := 0; i < n; i++ {
+		sumCF = sumCF.Add(sumCF, nodesFootprint[i])
+	}
+	if sumCF.Cmp(zero) <= 0 {
+		return nil, errors.New("cannot proceed with zero or negative total footprint")
+	}
+	reward, errorReward := wp.CalculateCarbonFootprintReward(n_big, sumCF, footprint, totalCryptoAmount)
+	return reward, errorReward
+
 }
 func (wp *WPRewardComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	if nbNodes.Cmp(zero) == 0 {
