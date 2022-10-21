@@ -238,13 +238,13 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	// log.Info("AccumulateRewards", "blockNumber", header.Number.String())
+	log.Info("AccumulateRewards", "blockNumber", header.Number.String())
 	// Select the correct block reward based on chain progression
-	author, err := c.Author(header)
-	if err != nil {
-		log.Error("Fail getting the Author of the block")
-		author = c.EngineInstance.Signer
-	}
+	// author, err := c.Author(header)
+	// if err != nil {
+	//	log.Error("Fail getting the Author of the block")
+	//	author = c.EngineInstance.Signer
+	//}
 
 	blockReward, err := calcCarbonFootprintReward(c, author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
