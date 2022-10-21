@@ -54,7 +54,8 @@ var (
 )
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
-var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
+// 102 in debug mode, 100 in production
+var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000102"
 
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
@@ -281,10 +282,10 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	if err != nil {
 		return nil, err
 	}
-	// Hack to debug
-	// if nbNodes.Uint64() == 0 {
-	//	return nil, errors.New("no node in PoCR smart contract")
-	//}
+
+	if nbNodes.Uint64() == 0 {
+		return nil, errors.New("no node in PoCR smart contract")
+	}
 	if err != nil {
 		return nil, err
 	}
