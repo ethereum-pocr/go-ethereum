@@ -281,9 +281,10 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	if err != nil {
 		return nil, err
 	}
-	if nbNodes.Uint64() == 0 {
-		return nil, errors.New("no node in PoCR smart contract")
-	}
+	// Hack to debug
+	// if nbNodes.Uint64() == 0 {
+	//	return nil, errors.New("no node in PoCR smart contract")
+	//}
 	if err != nil {
 		return nil, err
 	}
