@@ -56,23 +56,32 @@ func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int)
 	res := math.Pow(1.5, float64(L2))
 	return big.NewRat(1, int64(res)), nil
 }
-func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
+func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Float, error) {
 	if footprint.Cmp(zero) <= 0 {
 		return nil, errors.New("cannot proceed with zero or negative footprint")
 	}
-	sort.Slice(nodesFootprint, func(i, j int) bool {
-		return nodesFootprint[i].Cmp(nodesFootprint[j]) > 0
+	sort.Slice(nodesFootprint, func(a, b int) bool {
+		// sort direction high before low.
+		return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
 	})
 	// NbItemsAbove is the number of items above the current footprint
 	var NbItemsAbove int
 	N := len(nodesFootprint)
 	for i := 0; i < N; i++ {
-		if nodesFootprint[i].Cmp(footprint) == +1 {
-			NbItemsAbove++
+		if i == 0 {
+			if nodesFootprint[i].Cmp(footprint) == -1 {
+				NbItemsAbove++
+			}
+		} else if nodesFootprint[i].Cmp(nodesFootprint[i-1]) != 0 {
+			if nodesFootprint[i].Cmp(footprint) == -1 {
+				NbItemsAbove++
+			}
 		}
 	}
+
 	reward := math.Pow(0.9, float64(NbItemsAbove))
-	result := big.NewInt(int64(math.Round(reward)))
+	result := big.NewFloat(reward)
+
 	return result, nil
 
 }
