@@ -18,6 +18,7 @@
 package cliquepcr
 
 import (
+	"encoding/hex"
 	"errors"
 	"math/big"
 	"sync"
@@ -239,8 +240,16 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	log.Info("AccumulateRewards", "blockNumber", header.Number.String())
 
-	log.Info("accumulateRewards ExtractHeaderData ", header)
-
+	log.Info("accumulateRewards: header number ", header.Number.String(), "header hash", header.Hash().String(), "header parent hash", header.ParentHash.String(), "header coinbase", header.Coinbase.String(), "header extra", hex.EncodeToString(header.Extra))
+	extraSeal2 := crypto.SignatureLength
+	if len(header.Extra) > extraSeal2+extraVanity {
+		if ((len(header.Extra) - extraSeal2) % common.AddressLength) != 0 {
+			signature := header.Extra[len(header.Extra)-extraSeal2:]
+			log.Info("accumulateRewards: signature", hex.EncodeToString(signature))
+		}
+	}
+	// Recover the public key and the Ethereum address
+	// pubkey, err := crypto.Ecrecover(SealHash(header).Bytes(), signature)
 	// Select the correct block reward based on chain progression
 	author, err := c.Author(header)
 	if err != nil {
