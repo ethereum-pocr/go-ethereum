@@ -110,7 +110,7 @@ func (wp *WPRewardComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, 
 	rewardI := new(big.Int).Quo(reward.Num(), reward.Denom())
 	// cap to 2 CTC units
 	cap := big.NewInt(2)
-	cap = cap.Mul(cap, CTCUnit)
+	cap = cap.Mul(cap, big.NewInt(1e+18))
 	if rewardI.Cmp(cap) > 0 {
 		rewardI = cap
 	}

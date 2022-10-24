@@ -89,6 +89,6 @@ func (wp *PercentileRankRewardComputation) CalculateCarbonFootprintRewardCollect
 		return nil, errorGIF
 	}
 
-	reward := baseReward * float64(N) * globalInflationFactor * float64(N)
+	reward := baseReward * float64(N) * globalInflationFactor * float64(CTCUnit.Int64())
 	return big.NewInt(int64(math.Round(reward))), nil
 }

@@ -84,6 +84,13 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 		*/
 	}
 	reward := math.Pow(0.9, float64(NbItemsAbove))
-	return big.NewInt(int64(math.Round(reward))), nil
+	globalInflationFactor, errorGIF := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
+	if errorGIF != nil {
+		return nil, errorGIF
+	}
+
+	rewardfinal := reward * float64(N) * globalInflationFactor * float64(CTCUnit.Int64())
+
+	return big.NewInt(int64(math.Round(rewardfinal))), nil
 
 }
