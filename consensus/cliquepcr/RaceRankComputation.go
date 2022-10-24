@@ -35,14 +35,14 @@ func (wp *RaceRankComputation) CalculateAcceptNewSealersReward(nbNodes *big.Int)
 }
 
 // Public function for auditing, but used internally only
-func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
+func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int) (float64, error) {
 	// L = M / (8 000 000 * 30 / 3) // as integer value
 	// D = 2^L // The divisor : 2 at the power of L
 	// GlobalInflationControl = 1/D // 1; 1/2; 1/4; 1/8 ....
 
 	// If there is no crpto created, return 1
 	if M.Cmp(zero) == 0 {
-		return big.NewRat(1, 1), nil
+		return 1, nil
 	}
 	// L = TotalCRC / SimulationVariables().InflationDenominator
 	// D = pow(SimulationVariables().alpha, L)
@@ -53,10 +53,10 @@ func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int)
 
 	L2 := new(big.Int).Quo(L.Num(), L.Denom()).Uint64()
 
-	res := math.Pow(1.5, float64(L2))
-	return big.NewRat(1, int64(res)), nil
+	res := 1 / math.Pow(1.5, float64(L2))
+	return res, nil
 }
-func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Float, error) {
+func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
 	if footprint.Cmp(zero) <= 0 {
 		return nil, errors.New("cannot proceed with zero or negative footprint")
 	}
@@ -68,23 +68,22 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 	var NbItemsAbove int
 	N := len(nodesFootprint)
 	for i := 0; i < N; i++ {
-		if i == 0 {
-			if nodesFootprint[i].Cmp(footprint) == -1 {
-				NbItemsAbove++
-			}
-		} else if nodesFootprint[i].Cmp(nodesFootprint[i-1]) != 0 {
-			if nodesFootprint[i].Cmp(footprint) == -1 {
-				NbItemsAbove++
-			}
+		if nodesFootprint[i].Cmp(footprint) == -1 {
+			NbItemsAbove++
 		}
+		/*
+			if i == 0 {
+				if nodesFootprint[i].Cmp(footprint) == -1 {
+					NbItemsAbove++
+				}
+			} else if nodesFootprint[i].Cmp(nodesFootprint[i-1]) != 0 {
+				if nodesFootprint[i].Cmp(footprint) == -1 {
+					NbItemsAbove++
+				}
+			}
+		*/
 	}
-
 	reward := math.Pow(0.9, float64(NbItemsAbove))
-	result := big.NewFloat(reward)
+	return big.NewInt(int64(math.Round(reward))), nil
 
-	return result, nil
-
-}
-func (wp *RaceRankComputation) CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-	panic("CalculateCarbonFootprintRewardCollection not implemented")
 }

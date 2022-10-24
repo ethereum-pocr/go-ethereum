@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
-	// "github.com/ethereum/go-ethereum/cliquepcr/rewardcomputation"
 )
 
 // We put new constants to be able to override default clique values
@@ -63,7 +62,7 @@ var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
 var rewardComputation0 WPRewardComputation
-var rewardComputation1 ZScoreRewardComputation
+var zscoreRewardComputation ZScoreRewardComputation
 var rewardComputation2 PercentileRankRewardComputation
 var raceRankComputation RaceRankComputation
 
@@ -318,7 +317,7 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 		for i, signerAddress := range c.signersList {
 			a[i], _ = contract.footprint(signerAddress)
 		}
-		reward, rewardError = rewardComputation1.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
+		reward, rewardError = zscoreRewardComputation.CalculateCarbonFootprintRewardCollection(a, footprint, totalCrypto)
 	case 2:
 		for i, signerAddress := range c.signersList {
 			a[i], _ = contract.footprint(signerAddress)
