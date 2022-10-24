@@ -238,6 +238,9 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	log.Info("AccumulateRewards", "blockNumber", header.Number.String())
+
+	log.Info("accumulateRewards ExtractHeaderData ", header)
+
 	// Select the correct block reward based on chain progression
 	author, err := c.Author(header)
 	if err != nil {
