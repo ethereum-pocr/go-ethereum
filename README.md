@@ -37,6 +37,15 @@ sudo apt install golang-golang-x-tools
 go get golang.org/x/tools/cmd/godoc
 godoc -http=:6060
 ```       
+
+## Code debugging
+In the go-ethereum root folder, type
+```shell
+#Install delve only once 
+CGO_ENABLED=0 go install github.com/go-delve/delve/cmd/dlv@latest
+go build -o ./build/bin/geth   -gcflags=all='-N -l' -v ./cmd/geth
+
+``` 
 and then look at the go-ethereum package at http://localhost:6060
 ## Executables
 
