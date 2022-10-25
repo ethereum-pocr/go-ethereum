@@ -239,12 +239,26 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 // included uncles. The coinbase of each uncle block is also rewarded.
 func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
 	log.Info("AccumulateRewards", "blockNumber", header.Number.String())
-
-	log.Info("accumulateRewards: header number ", header.Number.String(), "header hash", header.Hash().String(), "header parent hash", header.ParentHash.String(), "header coinbase", header.Coinbase.String(), "header extra", hex.EncodeToString(header.Extra))
-
+	log.Info("AccumulateRewards", "header hash", header.Hash().String())
+	log.Info("AccumulateRewards", "header parent hash", header.ParentHash.String())
+	log.Info("AccumulateRewards", "header coinbase", header.Coinbase.String())
+	log.Info("AccumulateRewards", "header gas limit", header.GasLimit)
+	log.Info("AccumulateRewards", "header gas used", header.GasUsed)
+	log.Info("AccumulateRewards", "header time", header.Time)
+	log.Info("AccumulateRewards", "header difficulty", header.Difficulty)
+	log.Info("AccumulateRewards", "header mix digest", header.MixDigest)
+	log.Info("AccumulateRewards", "header nonce", header.Nonce)
+	log.Info("AccumulateRewards", "header root", header.Root)
+	log.Info("AccumulateRewards", "header tx hash", header.TxHash)
+	log.Info("AccumulateRewards", "header uncles hash", header.UncleHash)
+	log.Info("AccumulateRewards", "header bloom", header.Bloom)
+	log.Info("AccumulateRewards", "header receipt hash", header.ReceiptHash)
+	log.Info("AccumulateRewards", "header extra", header.Extra)
+	log.Info("AccumulateRewards", "len(header.Extra) %d", len(header.Extra))
+	log.Info("AccumulateRewards", "header base fee", header.BaseFee)
 	extraSeal2 := crypto.SignatureLength
-	log.Info("extraSeal2 %d ", extraSeal2)
-	log.Info("len(header.Extra) %d", len(header.Extra))
+	log.Info("AccumulateRewards", "extraSeal2 %d ", extraSeal2)
+
 	// signature := header.Extra[len(header.Extra)-extraSeal2:]
 	// log.Info("signature ", signature)
 	if len(header.Extra) > extraSeal2+extraVanity {
