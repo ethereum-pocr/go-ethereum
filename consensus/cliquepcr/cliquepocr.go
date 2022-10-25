@@ -241,12 +241,16 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	log.Info("AccumulateRewards", "blockNumber", header.Number.String())
 
 	log.Info("accumulateRewards: header number ", header.Number.String(), "header hash", header.Hash().String(), "header parent hash", header.ParentHash.String(), "header coinbase", header.Coinbase.String(), "header extra", hex.EncodeToString(header.Extra))
-	log.Info("full header", header)
+
 	extraSeal2 := crypto.SignatureLength
+	log.Info("extraSeal2 ", extraSeal2)
+	log.Info("len(header.Extra) ", len(header.Extra))
+	// signature := header.Extra[len(header.Extra)-extraSeal2:]
+	// log.Info("signature ", signature)
 	if len(header.Extra) > extraSeal2+extraVanity {
 		if ((len(header.Extra) - extraSeal2) % common.AddressLength) != 0 {
-			signature := header.Extra[len(header.Extra)-extraSeal2:]
-			log.Info("accumulateRewards: signature", hex.EncodeToString(signature))
+			signature2 := header.Extra[len(header.Extra)-extraSeal2:]
+			log.Info("accumulateRewards: signature", hex.EncodeToString(signature2))
 		}
 	}
 	// Recover the public key and the Ethereum address
