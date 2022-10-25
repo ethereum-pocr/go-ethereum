@@ -243,8 +243,8 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	log.Info("accumulateRewards: header number ", header.Number.String(), "header hash", header.Hash().String(), "header parent hash", header.ParentHash.String(), "header coinbase", header.Coinbase.String(), "header extra", hex.EncodeToString(header.Extra))
 
 	extraSeal2 := crypto.SignatureLength
-	log.Info("extraSeal2 ", extraSeal2)
-	log.Info("len(header.Extra) ", len(header.Extra))
+	log.Info("extraSeal2 %d ", extraSeal2)
+	log.Info("len(header.Extra) %d", len(header.Extra))
 	// signature := header.Extra[len(header.Extra)-extraSeal2:]
 	// log.Info("signature ", signature)
 	if len(header.Extra) > extraSeal2+extraVanity {
