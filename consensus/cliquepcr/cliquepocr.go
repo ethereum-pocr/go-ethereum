@@ -18,7 +18,6 @@
 package cliquepcr
 
 import (
-	"encoding/hex"
 	"errors"
 	"math/big"
 	"sync"
@@ -259,14 +258,23 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	extraSeal2 := crypto.SignatureLength
 	log.Info("AccumulateRewards", "extraSeal2 %d ", extraSeal2)
 
+	signature := header.Extra[len(header.Extra)-extraSeal2:]
+
+	// Recover the public key and the Ethereum address
+	pubkey, err := crypto.Ecrecover(c.EngineInstance.SealHash(header).Bytes(), signature)
+
+	var signer common.Address
+	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
+	log.Info("AccumulateRewards", "signer", signer.String())
+
 	// signature := header.Extra[len(header.Extra)-extraSeal2:]
 	// log.Info("signature ", signature)
-	if len(header.Extra) > extraSeal2+extraVanity {
-		if ((len(header.Extra) - extraSeal2) % common.AddressLength) != 0 {
-			signature2 := header.Extra[len(header.Extra)-extraSeal2:]
-			log.Info("accumulateRewards: signature", hex.EncodeToString(signature2))
-		}
-	}
+	// if len(header.Extra) > extraSeal2+extraVanity {
+	//	if ((len(header.Extra) - extraSeal2) % common.AddressLength) != 0 {
+	//		signature2 := header.Extra[len(header.Extra)-extraSeal2:]
+	//		log.Info("accumulateRewards: signature", hex.EncodeToString(signature2))
+	//	}
+	// }
 	// Recover the public key and the Ethereum address
 	// pubkey, err := crypto.Ecrecover(SealHash(header).Bytes(), signature)
 	// Select the correct block reward based on chain progression
