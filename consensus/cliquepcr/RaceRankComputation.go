@@ -15,6 +15,9 @@ func (wp *RaceRankComputation) GetAlgorithmId() int {
 	return 3
 }
 
+// On an annual basis, what is the minimimum amount of CRC tokens that have to be generated each year
+var minRequiredInflation = 0.03
+
 func (wp *RaceRankComputation) CalculateAcceptNewSealersReward(nbNodes *big.Int) (*big.Int, error) {
 	// no additional reward when there is one node or less
 	one := big.NewInt(1)
@@ -90,7 +93,10 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 	}
 
 	rewardfinal := reward * float64(N) * globalInflationFactor * float64(CTCUnit.Int64())
-
+	minReward := float64(totalCryptoAmount.Int64()) * minRequiredInflation * 365 * 24 * 3600 / float64(4)
+	if rewardfinal < minReward {
+		rewardfinal = minReward
+	}
 	return big.NewInt(int64(math.Round(rewardfinal))), nil
 
 }
