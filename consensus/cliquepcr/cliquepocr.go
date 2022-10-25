@@ -255,17 +255,17 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 	log.Info("AccumulateRewards", "header extra", header.Extra)
 	log.Info("AccumulateRewards", "len(header.Extra) %d", len(header.Extra))
 	log.Info("AccumulateRewards", "header base fee", header.BaseFee)
-	extraSeal2 := crypto.SignatureLength
-	log.Info("AccumulateRewards", "extraSeal2 %d ", extraSeal2)
+	// extraSeal2 := crypto.SignatureLength
+	// log.Info("AccumulateRewards", "extraSeal2 %d ", extraSeal2)
 
-	signature := header.Extra[len(header.Extra)-extraSeal2:]
+	// signature := header.Extra[len(header.Extra)-extraSeal2:]
 
 	// Recover the public key and the Ethereum address
-	pubkey, err := crypto.Ecrecover(c.EngineInstance.SealHash(header).Bytes(), signature)
+	// pubkey, err := crypto.Ecrecover(c.EngineInstance.SealHash(header).Bytes(), signature)
 
-	var signer common.Address
-	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
-	log.Info("AccumulateRewards", "signer", signer.String())
+	// var signer common.Address
+	// copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
+	// log.Info("AccumulateRewards", "signer", signer.String())
 
 	// signature := header.Extra[len(header.Extra)-extraSeal2:]
 	// log.Info("signature ", signature)
