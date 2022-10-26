@@ -77,8 +77,10 @@ type CliquePoCR struct {
 	lock   sync.RWMutex    // Protects the signer fields
 
 	// The fields below are for testing only
-	fakeDiff       bool // Skip difficulty verifications
-	EngineInstance *clique.Clique
+	fakeDiff             bool // Skip difficulty verifications
+	EngineInstance       *clique.Clique
+	signersList          []common.Address
+	signersListLastBlock uint64
 }
 
 func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
@@ -122,7 +124,23 @@ func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *typ
 // the input slice).
 
 func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+	go func() {
+		for i, header := range headers {
+			c.buildSealersList(chain, header, headers[:i])
+		}
+	}()
 	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
+}
+
+func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+	if header.Number != nil {
+		number := header.Number.Uint64()
+		if c.signersListLastBlock != number {
+			c.signersList, _ = c.getSigners(chain, header, parents)
+			c.signersListLastBlock = number
+		}
+	}
+	return nil
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -213,7 +231,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 		author = c.EngineInstance.Signer
 	}
 
-	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
+	blockReward, err := calcCarbonFootprintReward(c, author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
 	if err != nil || blockReward.Sign() == 0 {
 		log.Info("No reward for signer", "node", author.String(), "error", err)
@@ -242,7 +260,7 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	return newTotal
 }
 
-func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
+func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return nil, errors.New("cannot support genesis block")
@@ -255,26 +273,26 @@ func calcCarbonFootprintReward(address common.Address, config *params.ChainConfi
 	if nbNodes.Uint64() == 0 {
 		return nil, errors.New("no node in PoCR smart contract")
 	}
-	totalFootprint, err := contract.totalFootprint()
+	// Define an array to store all nodes footprint
+	var allNodesFootprint []*big.Int
+	// get the current caller-sealer footprint
+	signerNodefootprint, err := contract.footprint(address)
 	if err != nil {
 		return nil, err
 	}
-	footprint, err := contract.footprint(address)
-	if err != nil {
-		return nil, err
-	}
-	if footprint.Uint64() == 0 {
+
+	if signerNodefootprint.Uint64() == 0 {
 		return nil, errors.New("no footprint for sealer")
 	}
 
-	// totalCrypto, err := contract.getBalance()
-	totalCrypto := getTotalCryptoBalance(state)
-	if err != nil {
-		return nil, err
+	var reward *big.Int
+	var rewardError error
+	for i, signerAddress := range c.signersList {
+		allNodesFootprint[i], _ = contract.footprint(signerAddress)
 	}
-
-	reward, err := CalculatePoCRReward(nbNodes, totalFootprint, footprint, totalCrypto)
-	if err != nil {
+	totalCrypto := getTotalCryptoBalance(state)
+	reward, rewardError = raceRankComputation.CalculateCarbonFootprintRewardCollection(allNodesFootprint, signerNodefootprint, totalCrypto)
+	if rewardError != nil {
 		return nil, err
 	}
 
@@ -448,4 +466,17 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
 		return common.BytesToHash(result).Big(), nil
 	}
+}
+
+func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
+	number := header.Number.Uint64()
+
+	// Retrieve the snapshot needed to verify this header and cache it
+	snap, err := c.EngineInstance.Snapshot(chain, number-1, header.ParentHash, parents)
+	// If the block is a checkpoint block, verify the signer list
+	if number%c.config.Epoch == 0 {
+		signersArray := snap.GetSigners()
+		return signersArray, err
+	}
+	return nil, errors.New("Invalid Epoch when getting Signers list")
 }
