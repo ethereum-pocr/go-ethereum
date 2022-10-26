@@ -53,7 +53,7 @@ var (
 )
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
-var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
+var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000102"
 
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
@@ -61,6 +61,7 @@ var sessionVariablesContractAddress = "0x000000000000000000000000000000000000010
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
+var raceRankComputation RaceRankComputation
 
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
