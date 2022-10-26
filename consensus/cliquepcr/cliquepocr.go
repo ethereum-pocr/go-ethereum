@@ -265,8 +265,10 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	if header.Number.Int64() <= 0 {
 		return nil, errors.New("cannot support genesis block")
 	}
+	log.Info("calcCarbonFootprintReward ", "header.Number", header.Number)
 	contract := NewCarbonFootPrintContract(address, config, state, header)
 	nbNodes, err := contract.nbNodes()
+	log.Info("calcCarbonFootprintReward ", "nbNodes ", nbNodes)
 	if err != nil {
 		return nil, err
 	}
@@ -277,6 +279,7 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 	var allNodesFootprint []*big.Int
 	// get the current caller-sealer footprint
 	signerNodefootprint, err := contract.footprint(address)
+	log.Info("calcCarbonFootprintReward ", "signerNodefootprint ", signerNodefootprint)
 	if err != nil {
 		return nil, err
 	}
@@ -291,12 +294,13 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 		allNodesFootprint[i], _ = contract.footprint(signerAddress)
 	}
 	totalCrypto := getTotalCryptoBalance(state)
+	log.Info("calcCarbonFootprintReward ", "totalCrypto ", totalCrypto)
 	reward, rewardError = raceRankComputation.CalculateCarbonFootprintRewardCollection(allNodesFootprint, signerNodefootprint, totalCrypto)
 	if rewardError != nil {
 		return nil, err
 	}
 
-	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
 	return reward, nil
 }
 
