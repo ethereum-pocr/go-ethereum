@@ -300,7 +300,7 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *pa
 		return nil, err
 	}
 
-	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalCrypto, "nb", nbNodes, "footprint", signerNodefootprint, "reward", reward)
 	return reward, nil
 }
 
