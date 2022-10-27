@@ -18,25 +18,6 @@ func (wp *RaceRankComputation) GetAlgorithmId() int {
 // On an annual basis, what is the minimimum amount of CRC tokens that have to be generated each year
 var minRequiredInflation = 0.03
 
-func (wp *RaceRankComputation) CalculateAcceptNewSealersReward(nbNodes *big.Int) (*big.Int, error) {
-	// no additional reward when there is one node or less
-	one := big.NewInt(1)
-	if nbNodes.Cmp(one) <= 0 {
-		return zero, nil
-	}
-	// N = nbNodes - 1
-	N := new(big.Rat).SetInt(nbNodes)
-	N = N.Sub(N, big.NewRat(1, 1))
-	// reward = (N-1)/3
-	rew := big.NewRat(1, 3)
-	rew = rew.Mul(N, rew)
-	// reward = (N-1)/3 * CTC Unit
-	rew = rew.Mul(rew, new(big.Rat).SetInt(CTCUnit))
-	// calculate the result rounding to the unit
-	rewI := new(big.Int).Quo(rew.Num(), rew.Denom())
-	return rewI, nil
-}
-
 // Public function for auditing, but used internally only
 func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int) (float64, error) {
 	// L = M / (8 000 000 * 30 / 3) // as integer value
@@ -63,6 +44,9 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 	if footprint.Cmp(zero) <= 0 {
 		return nil, errors.New("cannot proceed with zero or negative footprint")
 	}
+	if len(nodesFootprint) < 2 {
+		return nil, errors.New("Not enough nodes carbon footprint to compute the reward")
+	}
 	sort.Slice(nodesFootprint, func(a, b int) bool {
 		// sort direction high before low.
 		return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
@@ -70,6 +54,15 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 	// NbItemsAbove is the number of items above the current footprint
 	var NbItemsAbove int
 	N := len(nodesFootprint)
+
+	if N == 0 {
+		return nil, errors.New("cannot average with zero node")
+	}
+
+	if footprint.Cmp(zero) <= 0 {
+		return nil, errors.New("cannot proceed with zero or negative footprint")
+	}
+
 	for i := 0; i < N; i++ {
 		if nodesFootprint[i].Cmp(footprint) == -1 {
 			NbItemsAbove++
@@ -87,16 +80,26 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFoo
 		*/
 	}
 	reward := math.Pow(0.9, float64(NbItemsAbove))
+
 	globalInflationFactor, errorGIF := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
 	if errorGIF != nil {
 		return nil, errorGIF
 	}
+	a := new(big.Float).Mul(big.NewFloat(reward), big.NewFloat(globalInflationFactor))
+	b := new(big.Float).Mul(a, big.NewFloat(float64(CTCUnit.Uint64())))
+	rewardCRCUnit := new(big.Float).Mul(b, big.NewFloat(float64(N)))
 
-	rewardfinal := reward * float64(N) * globalInflationFactor * float64(CTCUnit.Int64())
-	minReward := float64(totalCryptoAmount.Int64()) * minRequiredInflation * 365 * 24 * 3600 / float64(4)
-	if rewardfinal < minReward {
-		rewardfinal = minReward
-	}
-	return big.NewInt(int64(math.Round(rewardfinal))), nil
+	// minReward := float64(totalCryptoAmount.Int64()) * minRequiredInflation * 365 * 24 * 3600 / float64(4)
+	// minRewardCRCUnit := new(big.Float).Mul(big.NewFloat(minReward), big.NewFloat(float64(CTCUnit.Uint64())))
 
+	// Ignore at this step
+	// if rewardCRCUnit.Cmp(minRewardCRCUnit) < 0 {
+	//	rewardCRCUnit = minRewardCRCUnit
+	// }
+
+	// minRewardCRCUnit.Int()
+
+	u, _ := rewardCRCUnit.Int(nil)
+
+	return u, nil
 }

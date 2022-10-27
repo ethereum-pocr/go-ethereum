@@ -7,7 +7,7 @@ import (
 type IRewardComputation interface {
 	// Methods
 	GetAlgorithmId() int
-	CalculateAcceptNewSealersReward(nbNodes *big.Int) (*big.Int, error)
+
 	CalculateGlobalInflationControlFactor(M *big.Int) (float64, error)
 	CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error)
 }
