@@ -163,7 +163,7 @@ func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.He
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	accumulateRewards(c, chain.Config(), state, header, uncles)
+	accumulateRewards(c, chain.Config(), state, header, uncles, txs)
 	// Finalize
 	c.EngineInstance.Finalize(chain, header, state, txs, uncles)
 }
@@ -175,7 +175,7 @@ func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.H
 // consensus rules that happen at finalization (e.g. block rewards).
 
 func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	accumulateRewards(c, chain.Config(), state, header, uncles)
+	accumulateRewards(c, chain.Config(), state, header, uncles, txs)
 	// Finalize block
 	return c.EngineInstance.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
@@ -222,7 +222,13 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
-func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header, txs[] *types.Transaction) {
+	// sum of fees
+	totalFees := big.NewInt(0)
+	for i := 0; i < len(txs); i++ {
+		totalFees.Add(totalFees, txs[i].GetTxFee())
+	}
+
 	// log.Info("AccumulateRewards", "blockNumber", header.Number.String())
 	// Select the correct block reward based on chain progression
 	author, err := c.Author(header)
@@ -237,6 +243,10 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 		log.Info("No reward for signer", "node", author.String(), "error", err)
 		return
 	}
+	
+	
+	// Adjust the transaction fees according to the sealer ranking 
+	// TODO with totalFees
 	// Accumulate the rewards for the miner and any included uncles
 	// reward := new(big.Int).Set(blockReward)
 	// log.Info("Accumulate Reward", author.Hex(), reward)

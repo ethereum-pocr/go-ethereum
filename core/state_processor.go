@@ -111,7 +111,7 @@ func applyTransaction(msg types.Message, config *params.ChainConfig, author *com
 		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
 	}
 	*usedGas += result.UsedGas
-
+	tx.SetTxFee(result.Fee)
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
 	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}

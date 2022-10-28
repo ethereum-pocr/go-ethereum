@@ -85,6 +85,7 @@ type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
 	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
+	Fee				 *big.Int
 }
 
 // Unwrap returns the internal evm error which allows us for further
@@ -345,6 +346,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	}
 
+	fee := new(big.Int).SetUint64(0)
 	if st.evm.Config.NoBaseFee && st.gasFeeCap.Sign() == 0 && st.gasTipCap.Sign() == 0 {
 		// Skip fee payment when NoBaseFee is set and the fee fields
 		// are 0. This avoids a negative effectiveTip being applied to
@@ -357,6 +359,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
+		Fee: 				fee,
 		Err:        vmerr,
 		ReturnData: ret,
 	}, nil

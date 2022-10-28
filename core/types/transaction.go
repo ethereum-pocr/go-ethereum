@@ -56,6 +56,9 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	// other value
+	fee *big.Int
 }
 
 // NewTx creates a new transaction.
@@ -413,6 +416,15 @@ func (s Transactions) EncodeIndex(i int, w *bytes.Buffer) {
 		tx.encodeTyped(w)
 	}
 }
+
+func (tx *Transaction) SetTxFee(fee *big.Int)  {
+	tx.fee = fee;
+}
+
+func (tx *Transaction) GetTxFee() (*big.Int)  {
+	return tx.fee;
+}
+
 
 // TxDifference returns a new set which is the difference between a and b.
 func TxDifference(a, b Transactions) Transactions {
