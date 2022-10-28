@@ -32,12 +32,13 @@ func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int)
 	// D = pow(SimulationVariables().alpha, L)
 	// self.StandardWhitePaperComputation.CurrentGlobalInflation  = 1/D
 	C := big.NewInt(100000)
-	// C = C.Mul(C, CTCUnit)
+	C = C.Mul(C, CTCUnit)
 	L := new(big.Rat).SetFrac(M, C)
 
 	L2 := new(big.Int).Quo(L.Num(), L.Denom()).Uint64()
+	L3 := float64(L2)
 
-	res := 1 / math.Pow(1.5, float64(L2))
+	res := 1 / math.Pow(1.5, L3)
 	return res, nil
 }
 func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
