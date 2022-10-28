@@ -41,7 +41,9 @@ func TestCalcReward(t *testing.T) {
 	testCases = append(testCases, TestCase{10, 200000, 10000000, false, big.NewInt(int64(1549681956000000512))})
 	testCases = append(testCases, TestCase{10, 200000, 1, false, big.NewInt(int64(4444444444444444160))})
 	testCases = append(testCases, TestCase{10, 1e+8, 1, false, big.NewInt(int64(0))})
-
+	testCases = append(testCases, TestCase{5, 1e+6, 200000, false, big.NewInt(int64(78036884621246752))})
+	testCases = append(testCases, TestCase{3, 1e+7, 2000, false, big.NewInt(int64(7))})
+	testCases = append(testCases, TestCase{5, 5e+6, 500, false, big.NewInt(int64(7841642727))})
 	for index, test := range testCases {
 
 		t.Run(fmt.Sprintf("Test case %v", index), func(t *testing.T) {
