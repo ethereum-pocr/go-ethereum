@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -353,11 +354,16 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 	} else {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
+		log.Info("fee management: ", "fee", fee)
 		if managefee, ok := engine.(consensus.ManageFees); ok {
+			log.Info("fee management ok: ", "fee", fee)
 			err1 := managefee.ManageFees(st.state, st.evm.Context.Coinbase, fee)
 			if err1 != nil {
 				return nil, err1
 			}
+		} else {
+			log.Info("fee management not ok: ", "fee", fee)
+			st.state.AddBalance(st.evm.Context.Coinbase, fee)
 		}
 	}
 	return &ExecutionResult{
