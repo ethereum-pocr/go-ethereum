@@ -200,6 +200,10 @@ func (c *CliquePoCR) Close() error {
 func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 	c.EngineInstance.Authorize(signer, signFn)
 }
+func (c *CliquePoCR) ManageFees(aVMStateDB vm.StateDB, feeReceiver common.Address, feeAmount *big.Int) error {
+	log.Info("Managing fees in cliquepcr", "address = ", feeReceiver, "fee =", feeAmount)
+	return nil
+}
 
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
@@ -404,11 +408,6 @@ func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.Chain
 	cfg := runtime.Config{ChainConfig: config, Origin: nodeAddress, GasLimit: 1000000, State: stateCopy, BlockNumber: block}
 	contract.RuntimeConfig = &cfg
 	return contract
-}
-
-func ManageFees(aVMStateDB vm.StateDB, feeReceiver common.Address, feeAmount *big.Int) error {
-	log.Info("Managing fees in cliquepcr", "address = ", feeReceiver, "fee =", feeAmount)
-	return nil
 }
 
 // func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
