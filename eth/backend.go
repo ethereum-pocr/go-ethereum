@@ -79,7 +79,7 @@ type Ethereum struct {
 	chainDb ethdb.Database // Block chain database
 
 	eventMux       *event.TypeMux
-	engine         consensus.Engine
+	EthereumEngine consensus.Engine
 	accountManager *accounts.Manager
 
 	bloomRequests     chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
@@ -158,7 +158,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		chainDb:           chainDb,
 		eventMux:          stack.EventMux(),
 		accountManager:    stack.AccountManager(),
-		engine:            ethconfig.CreateConsensusEngine(stack, chainConfig, &ethashConfig, config.Miner.Notify, config.Miner.Noverify, chainDb),
+		EthereumEngine:    ethconfig.CreateConsensusEngine(stack, chainConfig, &ethashConfig, config.Miner.Notify, config.Miner.Noverify, chainDb),
 		closeBloomHandler: make(chan struct{}),
 		networkID:         config.NetworkId,
 		gasPrice:          config.Miner.GasPrice,
@@ -202,7 +202,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			Preimages:           config.Preimages,
 		}
 	)
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
+	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.EthereumEngine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 		return nil, err
 	}
 
-	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
+	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.EthereumEngine, eth.isLocalBlock)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData))
 
 	eth.APIBackend = &EthAPIBackend{stack.Config().ExtRPCEnabled(), stack.Config().AllowUnprotectedTxs, eth, nil}
@@ -301,7 +301,7 @@ func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
 	// Append any APIs exposed explicitly by the consensus engine
-	apis = append(apis, s.engine.APIs(s.BlockChain())...)
+	apis = append(apis, s.EthereumEngine.APIs(s.BlockChain())...)
 
 	// Append all the local APIs and return
 	return append(apis, []rpc.API{
@@ -360,7 +360,7 @@ func (s *Ethereum) Etherbase() (eb common.Address, err error) {
 // We regard two types of accounts as local miner account: etherbase
 // and accounts specified via `txpool.locals` flag.
 func (s *Ethereum) isLocalBlock(header *types.Header) bool {
-	author, err := s.engine.Author(header)
+	author, err := s.EthereumEngine.Author(header)
 	if err != nil {
 		log.Warn("Failed to retrieve block author", "number", header.Number.Uint64(), "hash", header.Hash(), "err", err)
 		return false
@@ -402,9 +402,9 @@ func (s *Ethereum) shouldPreserve(header *types.Header) bool {
 	// is A, F and G sign the block of round5 and reject the block of opponents
 	// and in the round6, the last available signer B is offline, the whole
 	// network is stuck.
-	if _, ok := s.engine.(*cliquepcr.CliquePoCR); ok {
+	if _, ok := s.EthereumEngine.(*cliquepcr.CliquePoCR); ok {
 		return false
-	} else if _, ok := s.engine.(*clique.Clique); ok {
+	} else if _, ok := s.EthereumEngine.(*clique.Clique); ok {
 		return false
 	}
 	return s.isLocalBlock(header)
@@ -427,7 +427,7 @@ func (s *Ethereum) StartMining(threads int) error {
 	type threaded interface {
 		SetThreads(threads int)
 	}
-	if th, ok := s.engine.(threaded); ok {
+	if th, ok := s.EthereumEngine.(threaded); ok {
 		log.Info("Updated mining threads", "threads", threads)
 		if threads == 0 {
 			threads = -1 // Disable the miner from within
@@ -451,12 +451,12 @@ func (s *Ethereum) StartMining(threads int) error {
 		var cli *clique.Clique
 
 		var clipcr *cliquepcr.CliquePoCR
-		if c, ok := s.engine.(*cliquepcr.CliquePoCR); ok {
+		if c, ok := s.EthereumEngine.(*cliquepcr.CliquePoCR); ok {
 			clipcr = c
 		}
-		if c, ok := s.engine.(*clique.Clique); ok {
+		if c, ok := s.EthereumEngine.(*clique.Clique); ok {
 			cli = c
-		} else if cl, ok := s.engine.(*beacon.Beacon); ok {
+		} else if cl, ok := s.EthereumEngine.(*beacon.Beacon); ok {
 			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
 				cli = c
 			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePoCR); ok {
@@ -494,7 +494,7 @@ func (s *Ethereum) StopMining() {
 	type threaded interface {
 		SetThreads(threads int)
 	}
-	if th, ok := s.engine.(threaded); ok {
+	if th, ok := s.EthereumEngine.(threaded); ok {
 		th.SetThreads(-1)
 	}
 	// Stop the block creating itself
@@ -508,7 +508,7 @@ func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager
 func (s *Ethereum) BlockChain() *core.BlockChain       { return s.blockchain }
 func (s *Ethereum) TxPool() *core.TxPool               { return s.txPool }
 func (s *Ethereum) EventMux() *event.TypeMux           { return s.eventMux }
-func (s *Ethereum) Engine() consensus.Engine           { return s.engine }
+func (s *Ethereum) Engine() consensus.Engine           { return s.EthereumEngine }
 func (s *Ethereum) ChainDb() ethdb.Database            { return s.chainDb }
 func (s *Ethereum) IsListening() bool                  { return true } // Always listening
 func (s *Ethereum) Downloader() *downloader.Downloader { return s.handler.downloader }
@@ -570,7 +570,7 @@ func (s *Ethereum) Stop() error {
 	s.txPool.Stop()
 	s.miner.Close()
 	s.blockchain.Stop()
-	s.engine.Close()
+	s.EthereumEngine.Close()
 
 	// Clean shutdown marker as the last thing before closing db
 	s.shutdownTracker.Stop()

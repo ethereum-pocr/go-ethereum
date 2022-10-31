@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -177,8 +178,8 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) (*ExecutionResult, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb()
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, engine consensus.Engine) (*ExecutionResult, error) {
+	return NewStateTransition(evm, msg, gp).TransitionDb(engine)
 }
 
 // to returns the recipient of the message.
@@ -272,7 +273,7 @@ func (st *StateTransition) preCheck() error {
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
-func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -352,6 +353,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	} else {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
+
 		st.state.AddBalance(st.evm.Context.Coinbase, fee)
 	}
 

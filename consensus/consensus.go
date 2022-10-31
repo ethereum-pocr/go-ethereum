@@ -132,3 +132,9 @@ type PoW interface {
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
 }
+
+// FeeManagementEngine is a consensus engine that ovverides default fee management logic with custom one.
+type FeeManagementEngine interface {
+	Engine
+	ManageFees(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction) error
+}
