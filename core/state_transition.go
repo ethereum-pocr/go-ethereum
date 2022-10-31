@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
@@ -354,7 +355,7 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 	} else {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
-		log.Info("fee management: ", "fee", fee)
+		log.Info("fee management: ", "fee", fee, "type", reflect.TypeOf(engine))
 		if managefee, ok := engine.(consensus.ManageFees); ok {
 			log.Info("fee management ok: ", "fee", fee)
 			err1 := managefee.ManageFees(st.state, st.evm.Context.Coinbase, fee)
