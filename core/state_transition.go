@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -354,18 +353,13 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 	} else {
 		fee := new(big.Int).SetUint64(st.gasUsed())
 		fee.Mul(fee, effectiveTip)
-		var i interface{} = engine
-		if _, ok := i.(consensus.FeeManagementEngine); ok {
-			err1 := engine.(consensus.FeeManagementEngine).ManageFees(st.state, st.evm.Context.Coinbase, fee)
+		if managefee, ok := engine.(consensus.ManageFees); ok {
+			err1 := managefee.ManageFees(st.state, st.evm.Context.Coinbase, fee)
 			if err1 != nil {
 				return nil, err1
 			}
-		} else {
-			log.Info("ManageFees not implemented")
-			st.state.AddBalance(st.evm.Context.Coinbase, fee)
 		}
 	}
-
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
 		Err:        vmerr,

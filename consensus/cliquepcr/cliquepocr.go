@@ -200,6 +200,7 @@ func (c *CliquePoCR) Close() error {
 func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 	c.EngineInstance.Authorize(signer, signFn)
 }
+
 func (c *CliquePoCR) ManageFees(aVMStateDB vm.StateDB, feeReceiver common.Address, feeAmount *big.Int) error {
 	log.Info("Managing fees in cliquepcr", "address = ", feeReceiver, "fee =", feeAmount)
 	return nil

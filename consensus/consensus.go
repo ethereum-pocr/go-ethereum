@@ -134,8 +134,9 @@ type PoW interface {
 	Hashrate() float64
 }
 
-// FeeManagementEngine is a consensus engine that ovverides default fee management logic with custom one.
-type FeeManagementEngine interface {
+type ManageFees interface {
 	Engine
+
+	// Interface to manage fees/ Returns false if the engine does not want to override fees
 	ManageFees(vm.StateDB, common.Address, *big.Int) error
 }
