@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -403,6 +404,11 @@ func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.Chain
 	cfg := runtime.Config{ChainConfig: config, Origin: nodeAddress, GasLimit: 1000000, State: stateCopy, BlockNumber: block}
 	contract.RuntimeConfig = &cfg
 	return contract
+}
+
+func ManageFees(aVMStateDB vm.StateDB, feeReceiver common.Address, feeAmount *big.Int) error {
+	log.Info("Managing fees in cliquepcr", "address = ", feeReceiver, "fee =", feeAmount)
+	return nil
 }
 
 // func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {

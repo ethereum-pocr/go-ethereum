@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -136,5 +137,5 @@ type PoW interface {
 // FeeManagementEngine is a consensus engine that ovverides default fee management logic with custom one.
 type FeeManagementEngine interface {
 	Engine
-	ManageFees(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction) error
+	ManageFees(vm.StateDB, common.Address, *big.Int) error
 }
