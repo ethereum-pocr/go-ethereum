@@ -54,7 +54,7 @@ var (
 )
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
-var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
+var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000102"
 
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
@@ -62,6 +62,7 @@ var sessionVariablesContractAddress = "0x000000000000000000000000000000000000010
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
+var raceRankComputation RaceRankComputation
 
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
@@ -77,8 +78,10 @@ type CliquePoCR struct {
 	lock   sync.RWMutex    // Protects the signer fields
 
 	// The fields below are for testing only
-	fakeDiff       bool // Skip difficulty verifications
-	EngineInstance *clique.Clique
+	fakeDiff             bool // Skip difficulty verifications
+	EngineInstance       *clique.Clique
+	signersList          []common.Address
+	signersListLastBlock uint64
 }
 
 func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
@@ -122,7 +125,23 @@ func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *typ
 // the input slice).
 
 func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+	go func() {
+		for i, header := range headers {
+			c.buildSealersList(chain, header, headers[:i])
+		}
+	}()
 	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
+}
+
+func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+	if header.Number != nil {
+		number := header.Number.Uint64()
+		if c.signersListLastBlock != number {
+			c.signersList, _ = c.getSigners(chain, header, parents)
+			c.signersListLastBlock = number
+		}
+	}
+	return nil
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -223,7 +242,7 @@ func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.S
 		author = c.EngineInstance.Signer
 	}
 
-	blockReward, err := calcCarbonFootprintReward(author, config, state, header)
+	blockReward, err := calcCarbonFootprintReward(c, author, config, state, header)
 	// if it could not be calculated or if the calculation returned zero
 	if err != nil || blockReward.Sign() == 0 {
 		log.Info("No reward for signer", "node", author.String(), "error", err)
@@ -252,153 +271,48 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	return newTotal
 }
 
-func calcCarbonFootprintReward(address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
+func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return nil, errors.New("cannot support genesis block")
 	}
+	log.Info("calcCarbonFootprintReward ", "header.Number", header.Number)
 	contract := NewCarbonFootPrintContract(address, config, state, header)
 	nbNodes, err := contract.nbNodes()
+	log.Info("calcCarbonFootprintReward ", "nbNodes ", nbNodes)
 	if err != nil {
 		return nil, err
 	}
 	if nbNodes.Uint64() == 0 {
 		return nil, errors.New("no node in PoCR smart contract")
 	}
-	totalFootprint, err := contract.totalFootprint()
+	// Define an array to store all nodes footprint
+	var allNodesFootprint []*big.Int
+	// get the current caller-sealer footprint
+	signerNodefootprint, err := contract.footprint(address)
+	log.Info("calcCarbonFootprintReward ", "signerNodefootprint ", signerNodefootprint)
 	if err != nil {
 		return nil, err
 	}
-	footprint, err := contract.footprint(address)
-	if err != nil {
-		return nil, err
-	}
-	if footprint.Uint64() == 0 {
+
+	if signerNodefootprint.Uint64() == 0 {
 		return nil, errors.New("no footprint for sealer")
 	}
 
-	// totalCrypto, err := contract.getBalance()
+	var reward *big.Int
+	var rewardError error
+	for i, signerAddress := range c.signersList {
+		allNodesFootprint[i], _ = contract.footprint(signerAddress)
+	}
 	totalCrypto := getTotalCryptoBalance(state)
-	if err != nil {
+	log.Info("calcCarbonFootprintReward ", "totalCrypto ", totalCrypto)
+	reward, rewardError = raceRankComputation.CalculateCarbonFootprintRewardCollection(allNodesFootprint, signerNodefootprint, totalCrypto)
+	if rewardError != nil {
 		return nil, err
 	}
 
-	reward, err := CalculatePoCRReward(nbNodes, totalFootprint, footprint, totalCrypto)
-	if err != nil {
-		return nil, err
-	}
-
-	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalFootprint, "nb", nbNodes, "footprint", footprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalCrypto, "nb", nbNodes, "footprint", signerNodefootprint, "reward", reward)
 	return reward, nil
-}
-
-func CalculatePoCRReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
-
-	cf, err := CalculateCarbonFootprintReward(nbNodes, totalFootprint, footprint)
-	if err != nil {
-		return nil, err
-	}
-
-	// ns, err := CalculateAcceptNewSealersReward(nbNodes)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	infl, err := CalculateGlobalInflationControlFactor(totalCryptoAmount)
-	if err != nil {
-		return nil, err
-	}
-	// Reward(n, b) = CarbonReduction(n) * N * GlobalInflationControl(b)
-	rew := new(big.Rat).SetInt(cf)
-	// rew = rew.Add(rew, new(big.Rat).SetInt(ns))
-	rew = rew.Mul(rew, new(big.Rat).SetInt(nbNodes))
-	rew = rew.Mul(rew, infl)
-
-	rewI := new(big.Int).Quo(rew.Num(), rew.Denom())
-	return rewI, nil
-}
-
-func CalculateCarbonFootprintReward(nbNodes *big.Int, totalFootprint *big.Int, footprint *big.Int) (*big.Int, error) {
-	if nbNodes.Cmp(zero) == 0 {
-		return nil, errors.New("cannot average with zero node")
-	}
-	if totalFootprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative total footprint")
-	}
-	if footprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative footprint")
-	}
-	// average = totalFootprint / nbNodes
-	average := new(big.Rat).SetFrac(totalFootprint, nbNodes)
-	// ratio = nbNodes / totalFootprint
-	ratio := new(big.Rat).Inv(average)
-	// ratio = footprint * (nbNodes / totalFootprint) = X
-	ratio = ratio.Mul(ratio, new(big.Rat).SetInt(footprint))
-	// ratio = X + 0,2
-	ratio = ratio.Add(ratio, big.NewRat(2, 10))
-	// ratio = 1 / (X + 0,2)
-	ratio = ratio.Inv(ratio)
-	// ratio = 1 / (X + 0,2) - 0,5
-	ratio = ratio.Sub(ratio, big.NewRat(5, 10))
-	if ratio.Sign() <= 0 {
-		return big.NewInt(0), nil
-	}
-	// reward = 1 CTC (10^18 Wei)
-	reward := new(big.Rat).SetInt(CTCUnit)
-	// reward = ratio * CTC unit
-	reward = reward.Mul(reward, ratio)
-	// convert to big.Int
-	rewardI := new(big.Int).Quo(reward.Num(), reward.Denom())
-	// cap to 2 CTC units
-	cap := big.NewInt(2)
-	cap = cap.Mul(cap, CTCUnit)
-	if rewardI.Cmp(cap) > 0 {
-		rewardI = cap
-	}
-
-	return rewardI, nil
-}
-
-func CalculateAcceptNewSealersReward(nbNodes *big.Int) (*big.Int, error) {
-	// no additional reward when there is one node or less
-	one := big.NewInt(1)
-	if nbNodes.Cmp(one) <= 0 {
-		return zero, nil
-	}
-	// N = nbNodes - 1
-	N := new(big.Rat).SetInt(nbNodes)
-	N = N.Sub(N, big.NewRat(1, 1))
-	// reward = (N-1)/3
-	rew := big.NewRat(1, 3)
-	rew = rew.Mul(N, rew)
-	// reward = (N-1)/3 * CTC Unit
-	rew = rew.Mul(rew, new(big.Rat).SetInt(CTCUnit))
-	// calculate the result rounding to the unit
-	rewI := new(big.Int).Quo(rew.Num(), rew.Denom())
-	return rewI, nil
-}
-
-// Implements the alternative as we have the total amount of crypto created available
-func CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
-	// L = M / (8 000 000 * 30 / 3) // as integer value
-	// D = 2^L // The divisor : 2 at the power of L
-	// GlobalInflationControl = 1/D // 1; 1/2; 1/4; 1/8 ....
-
-	// If there is no crpto created, return 1
-	if M.Cmp(zero) == 0 {
-		return big.NewRat(1, 1), nil
-	}
-	C := big.NewInt(8_000_000 * 30 / 3)
-	C = C.Mul(C, CTCUnit)
-	L := new(big.Rat).SetFrac(M, C)
-	L2 := new(big.Int).Quo(L.Num(), L.Denom()).Uint64()
-	// D = 2^L
-	D := int64(1) << L2
-	// log.Info("Trace CalculateGlobalInflationControlFactor", "M", M, "L2", L2, "D", D)
-	if D == 0 { // The divisor has reached such a large amount (2^63) than the shift gave 0, So Dividing by a very large number is equivalent to 0
-		return big.NewRat(0, 1), nil
-	}
-	return big.NewRat(1, D), nil
 }
 
 type CarbonFootprintContract struct {
@@ -415,10 +329,6 @@ func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.Chain
 	contract.RuntimeConfig = &cfg
 	return contract
 }
-
-// func (contract *CarbonFootprintContract) getBalance() (*big.Int, error) {
-// 	return contract.RuntimeConfig.State.GetBalance(common.HexToAddress(totalCryptoGeneratedAddress)), nil
-// }
 
 func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 	input := common.Hex2Bytes("b6c3dcf8")
@@ -458,4 +368,17 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
 		return common.BytesToHash(result).Big(), nil
 	}
+}
+
+func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
+	number := header.Number.Uint64()
+
+	// Retrieve the snapshot needed to verify this header and cache it
+	snap, err := c.EngineInstance.Snapshot(chain, number-1, header.ParentHash, parents)
+	// If the block is a checkpoint block, verify the signer list
+	if number%c.config.Epoch == 0 {
+		signersArray := snap.GetSigners()
+		return signersArray, err
+	}
+	return nil, errors.New("Invalid Epoch when getting Signers list")
 }
