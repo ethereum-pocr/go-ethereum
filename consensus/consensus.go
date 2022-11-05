@@ -134,9 +134,18 @@ type PoW interface {
 	Hashrate() float64
 }
 
+type TxFee struct {
+	IsFake					bool // true if the fee has been calculated on a call or trace, false if it is a real transaction
+	Spender					common.Address
+	Spent						*big.Int
+	Receiver				common.Address
+	Received				*big.Int
+	Burnt						*big.Int
+}
+
 type ManageFees interface {
 	Engine
 
 	// Interface to manage fees/ Returns false if the engine does not want to override fees
-	ManageFees(vm.StateDB, common.Address, *big.Int) error
+	ManageFees(vm.StateDB, *TxFee) error
 }

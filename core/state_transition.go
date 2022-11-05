@@ -20,15 +20,13 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -353,18 +351,28 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		fee := new(big.Int).SetUint64(st.gasUsed())
-		fee.Mul(fee, effectiveTip)
-		log.Info("fee management: ", "fee", fee, "type", reflect.TypeOf(engine))
+		received := new(big.Int).SetUint64(st.gasUsed())
+		received.Mul(received, effectiveTip)
+		spent := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
+		burnt := new(big.Int).Sub(spent, received)
+		// log.Info("fee management: ", "isFake", st.msg.IsFake(),"spent", spent, "received", received, "burnt", burnt)
 		if managefee, ok := engine.(consensus.ManageFees); ok {
-			log.Info("fee management ok: ", "fee", fee)
-			err1 := managefee.ManageFees(st.state, st.evm.Context.Coinbase, fee)
+			fee := &consensus.TxFee{
+				IsFake: st.msg.IsFake(),
+				Spender: st.msg.From(),
+				Receiver: st.evm.Context.Coinbase,
+				Spent: spent,
+				Received: received,
+				Burnt: burnt,
+			}
+			// log.Info("fee management ok: ", "fee", fee)
+			err1 := managefee.ManageFees(st.state, fee)
 			if err1 != nil {
 				return nil, err1
 			}
 		} else {
-			log.Info("fee management not ok: ", "fee", fee)
-			st.state.AddBalance(st.evm.Context.Coinbase, fee)
+			// log.Info("fee management not ok: ", "fee", received)
+			st.state.AddBalance(st.evm.Context.Coinbase, received)
 		}
 	}
 	return &ExecutionResult{

@@ -201,8 +201,13 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 	c.EngineInstance.Authorize(signer, signFn)
 }
 
-func (c *CliquePoCR) ManageFees(aVMStateDB vm.StateDB, feeReceiver common.Address, feeAmount *big.Int) error {
-	log.Info("Managing fees in cliquepcr", "address = ", feeReceiver, "fee =", feeAmount)
+func (c *CliquePoCR) ManageFees(state vm.StateDB, fee *consensus.TxFee) error {
+	
+	if (!fee.IsFake) {
+		log.Info("Managing fees in cliquepcr", "isFake", fee.IsFake,"address", fee.Receiver, "fee", fee.Received)
+		state.AddBalance(fee.Receiver, fee.Received)
+	}
+
 	return nil
 }
 

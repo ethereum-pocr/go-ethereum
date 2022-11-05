@@ -20,15 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
@@ -387,16 +385,16 @@ func (beacon *Beacon) APIs(chain consensus.ChainHeaderReader) []rpc.API {
 	return beacon.ethone.APIs(chain)
 }
 
-func (beacon *Beacon) ManageFees(vmState vm.StateDB, addr common.Address, fee *big.Int) error {
+func (beacon *Beacon) ManageFees(vmState vm.StateDB, fee *consensus.TxFee) error {
 	if managefee, ok := beacon.ethone.(consensus.ManageFees); ok {
-		log.Info("fee management in beacon ", "type", reflect.TypeOf(beacon.ethone))
-		err1 := managefee.ManageFees(vmState, addr, fee)
+		// log.Info("fee management in beacon ", "type", reflect.TypeOf(beacon.ethone))
+		err1 := managefee.ManageFees(vmState, fee)
 		if err1 != nil {
 			return err1
 		}
 	} else {
-		log.Info("fee management not ok in beacon: ", "fee", fee)
-		vmState.AddBalance(addr, fee)
+		// log.Info("fee management not ok in beacon: ", "fee", fee)
+		vmState.AddBalance(fee.Spender, fee.Spent)
 	}
 	return nil
 }
