@@ -170,7 +170,7 @@ func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.He
 func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	log.Info("Finalize", "number", header.Number)
 	// c.buildSealersList(chain, header, nil)
-	blockPostProcessing(c, chain, state, header, uncles)
+	blockPostProcessing(c, chain, state, header, txs)
 	// Finalize
 	c.EngineInstance.Finalize(chain, header, state, txs, uncles)
 }
@@ -184,7 +184,7 @@ func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.H
 func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	log.Info("FinalizeAndAssemble", "number", header.Number)
 	// c.buildSealersList(chain, header, nil)
-	blockPostProcessing(c, chain, state, header, uncles)
+	blockPostProcessing(c, chain, state, header, txs)
 	// Finalize block
 	return c.EngineInstance.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
@@ -263,7 +263,7 @@ func (c *CliquePoCR) ManageFees(state vm.StateDB, fee *consensus.TxFee) error {
 // blockPostProcessing will credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included transactions. The reward will depends on the carbon footprint of the node.
-func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, txs []*types.Transaction) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return
@@ -289,12 +289,14 @@ func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state
 		log.Info("Fail calculating the block reward", "node", author.String(), "error", err)
 		return
 	}
-	feeAdjustment, err := calcCarbonFootprintTxFee(c, author, header)
+	feeAdjustment, burnt, err := calcCarbonFootprintTxFee(c, author, header, rank, txs)
 	// if it could not be calculated 
 	if err != nil {
 		log.Info("Fail calculating the Tx fee adjustment", "node", author.String(), "error", err)
 		return
 	}
+
+	log.Info("Sealer earnings", "block", header.Number, "node", author.String(), "blockReward", blockReward, "feeAdjustment", feeAdjustment, "burnt", burnt)
 
 	if blockReward.Sign() != 0 {
 		// log.Info("Accumulate Reward", author.Hex(), reward)
@@ -308,7 +310,15 @@ func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state
 	if feeAdjustment.Sign() == 1 {
 		state.AddBalance(author, feeAdjustment)
 	} else if feeAdjustment.Sign() == -1 {
+		// remove the over received fee
 		state.SubBalance(author, new(big.Int).Abs(feeAdjustment))
+		// remove the un earned (burned)
+		addTotalCryptoBalance(state, feeAdjustment)
+	}
+	
+	if burnt.Sign() != 0 {
+		// remove the burned fee
+		addTotalCryptoBalance(state, burnt.Neg(burnt))
 	}
 
 }
@@ -317,10 +327,10 @@ func getTotalCryptoBalance(state *state.StateDB) *big.Int {
 	return ReadSessionVariable(sessionVariableTotalPocRCoins, state)
 }
 
-func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
+func addTotalCryptoBalance(state *state.StateDB, value *big.Int) *big.Int {
 	// state.CreateAccount(common.HexToAddress(totalCryptoGeneratedAddress))
 	currentTotal := ReadSessionVariable(sessionVariableTotalPocRCoins, state)
-	newTotal := big.NewInt(0).Add(currentTotal, reward)
+	newTotal := big.NewInt(0).Add(currentTotal, value)
 	SetSessionVariable(sessionVariableTotalPocRCoins, newTotal, state)
 	// log.Info("Increasing the total crypto", "from", currentTotal.String(), "to", newTotal.String())
 	return newTotal
@@ -343,7 +353,7 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 		if err == nil {
 			allNodesFootprint = append(allNodesFootprint, f)
 			// if the current sealer is our block author, keep its footprint
-			if bytes.Compare(signerAddress.Bytes(), author.Bytes()) == 0 {
+			if bytes.Equal(signerAddress.Bytes(), author.Bytes()) {
 				footprint = f
 			}
 		}
@@ -360,8 +370,20 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 	return footprint, r, N, M, nil
 }
 
-func calcCarbonFootprintTxFee(c *CliquePoCR, address common.Address, header *types.Header) (*big.Int, error) {
-	return big.NewInt(0), nil
+func calcCarbonFootprintTxFee(c *CliquePoCR, address common.Address, header *types.Header, rank *big.Rat, txs []*types.Transaction) (*big.Int, *big.Int, error) {
+	received := big.NewInt(0)
+	burnt := big.NewInt(0)
+	for _, tx := range txs {
+		received = received.Add(received, tx.FeeTransferred)
+		burnt = burnt.Add(burnt, tx.FeeBurnt)
+	}
+
+	expected := new(big.Rat).SetInt(received)
+	expected = expected.Mul(expected, rank)
+
+	adjustment := new(big.Rat).Sub(expected, new(big.Rat).SetInt(received))
+
+	return new(big.Int).Div(adjustment.Num(), adjustment.Denom()), burnt, nil
 }
 
 func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, header *types.Header, footprint *big.Int, rank *big.Rat, nbNodes int, totalCrypto *big.Int) (*big.Int, error) {
@@ -401,7 +423,7 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("getSigners", "snap", snap)
+	// log.Debug("getSigners", "snap", snap)
 	// If the block is a checkpoint block, verify the signer list
 	// if number%c.config.Epoch == 0 {
 	signersArray := snap.GetSigners()

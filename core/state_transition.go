@@ -20,12 +20,15 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+
 	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -84,6 +87,9 @@ type Message interface {
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
+	FeeSpent	 *big.Int // Amount of crypto spent by the caller as fees
+	FeeTransferred *big.Int // Amount of crypto received by the block sealer
+	FeeBurnt   *big.Int // Amount of crypto spent by the caller and burnt = FeeSpent - FeeTransferred
 	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
@@ -346,15 +352,19 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 		effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	}
 
+	received := new(big.Int).SetUint64(st.gasUsed())
+	received.Mul(received, effectiveTip)
+	spent := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
+	burnt := new(big.Int).Sub(spent, received)
+	log.Debug("Fee Calculation", "spent", spent, "received", received, "burnt", burnt)
 	if st.evm.Config.NoBaseFee && st.gasFeeCap.Sign() == 0 && st.gasTipCap.Sign() == 0 {
 		// Skip fee payment when NoBaseFee is set and the fee fields
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
+		received = big.NewInt(0)
+		spent = big.NewInt(0)
+		burnt = big.NewInt(0)
 	} else {
-		received := new(big.Int).SetUint64(st.gasUsed())
-		received.Mul(received, effectiveTip)
-		spent := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
-		burnt := new(big.Int).Sub(spent, received)
 		// log.Info("fee management: ", "isFake", st.msg.IsFake(),"spent", spent, "received", received, "burnt", burnt)
 		if managefee, ok := engine.(consensus.ManageFees); ok {
 			fee := &consensus.TxFee{
@@ -377,6 +387,9 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 	}
 	return &ExecutionResult{
 		UsedGas:    st.gasUsed(),
+		FeeSpent:   spent,
+		FeeTransferred: received,
+		FeeBurnt:   burnt,
 		Err:        vmerr,
 		ReturnData: ret,
 	}, nil

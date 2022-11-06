@@ -63,6 +63,7 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 			NbItemsAbove++
 		}
 	}
+
 	rank = wp.getRanking(NbItemsAbove)
 	log.Debug("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
 	log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)

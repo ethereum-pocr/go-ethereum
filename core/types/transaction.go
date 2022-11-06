@@ -56,6 +56,12 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	// additional calculated fields
+	FeeSpent	     *big.Int // Amount of crypto spent by the caller as fees
+	FeeTransferred *big.Int // Amount of crypto received by the block sealer
+	FeeBurnt       *big.Int // Amount of crypto spent by the caller and burnt = FeeSpent - FeeTransferred
+
 }
 
 // NewTx creates a new transaction.

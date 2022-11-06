@@ -101,6 +101,11 @@ func applyTransactionWithEngine(msg types.Message, config *params.ChainConfig, a
 	if err != nil {
 		return nil, err
 	}
+	// copy the calculated fee fields to the transaction structure
+	tx.FeeSpent = result.FeeSpent
+	tx.FeeTransferred = result.FeeTransferred
+	tx.FeeBurnt = result.FeeBurnt
+
 	// Update the state with pending changes.
 	var root []byte
 	if config.IsByzantium(blockNumber) {
