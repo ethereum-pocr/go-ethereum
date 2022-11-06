@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/log"
+	// "github.com/ethereum/go-ethereum/log"
 )
 
 // The standard WhitePaper computation
@@ -65,8 +65,8 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 	}
 
 	rank = wp.getRanking(NbItemsAbove)
-	log.Debug("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
-	log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)
+	// log.Debug("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
+	// log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)
 	// log.Debug("RaceRankComputation.CalculateRanking", "rank 9", wp.getRanking(9))
 	// log.Debug("RaceRankComputation.CalculateRanking", "rank 99", wp.getRanking(99))
 

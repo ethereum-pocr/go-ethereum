@@ -62,18 +62,18 @@ func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 		return common.BytesToHash(result).Big(), nil
 	}
 }
-func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
-	input := common.Hex2Bytes("03b2ec98")
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
-		return common.BytesToHash(result).Big(), nil
-	}
-}
+// func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
+// 	input := common.Hex2Bytes("03b2ec98")
+// 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
+// 	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
+// 	if err != nil {
+// 		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
+// 		return nil, err
+// 	} else {
+// 		// log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
+// 		return common.BytesToHash(result).Big(), nil
+// 	}
+// }
 func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.Int, error) {
 	addressString := ofNode.String()
 	addressString = addressString[2:]
