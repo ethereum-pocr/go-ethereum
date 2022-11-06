@@ -260,10 +260,10 @@ func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state
 		return
 	}
 	
-	// Get the block sealer
+	// Get the block sealer when the block is signed by another node
 	author, err := c.Author(header)
 	if err != nil {
-		// log.Error("Fail getting the Author of the block")
+		// the block is not yet signed so we are signing it
 		author = c.EngineInstance.Signer
 	}
 
