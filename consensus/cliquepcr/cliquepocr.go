@@ -1,5 +1,5 @@
-// Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
+// Copyright 2017 The go-ethereum Authors
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -18,9 +18,11 @@
 package cliquepcr
 
 import (
-	"errors"
+	"bytes"
+	// "errors"
 	"math/big"
-	"sync"
+
+	// "sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -29,7 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/core/vm/runtime"
+
+	// "github.com/ethereum/go-ethereum/core/vm/runtime"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
@@ -53,8 +56,6 @@ var (
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes, that could be overrided from default Clique
 )
 
-// address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
-var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000102"
 
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
@@ -62,7 +63,7 @@ var sessionVariablesContractAddress = "0x000000000000000000000000000000000000010
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
-var raceRankComputation RaceRankComputation
+// var raceRankComputation = NewRaceRankComputation()
 
 type CliquePoCR struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
@@ -73,15 +74,16 @@ type CliquePoCR struct {
 
 	proposals map[common.Address]bool // Current list of proposals we are pushing
 
-	signer common.Address  // Ethereum address of the signing key
-	signFn clique.SignerFn // Signer function to authorize hashes with
-	lock   sync.RWMutex    // Protects the signer fields
+	// signer common.Address  // Ethereum address of the signing key
+	// signFn clique.SignerFn // Signer function to authorize hashes with
+	// lock   sync.RWMutex    // Protects the signer fields
 
 	// The fields below are for testing only
-	fakeDiff             bool // Skip difficulty verifications
+	// fakeDiff             bool // Skip difficulty verifications
 	EngineInstance       *clique.Clique
-	signersList          []common.Address
-	signersListLastBlock uint64
+	// signersList          []common.Address
+	// signersListLastBlock uint64
+	computation          IRewardComputation
 }
 
 func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
@@ -98,7 +100,9 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 		recents:        recents,
 		signatures:     signatures,
 		proposals:      make(map[common.Address]bool),
-		EngineInstance: clique.New(config, db)}
+		EngineInstance: clique.New(config, db),
+		computation: NewRaceRankComputation(),
+	}
 }
 
 func SetSessionVariable(key string, value *big.Int, state *state.StateDB) {
@@ -108,6 +112,10 @@ func ReadSessionVariable(key string, state *state.StateDB) *big.Int {
 	return state.GetState(common.HexToAddress(sessionVariablesContractAddress), common.BytesToHash(crypto.Keccak256([]byte(key)))).Big()
 }
 
+// ########################################################################################################################
+// ## IMPLEMENT THE consensus.Engine INTERFACE
+// ########################################################################################################################
+
 func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
 	return c.EngineInstance.Author(header)
 }
@@ -116,6 +124,8 @@ func (c *CliquePoCR) Author(header *types.Header) (common.Address, error) {
 // given EngineInstance. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
+	log.Info("VerifyHeader", "number", header.Number)
+	// c.buildSealersList(chain, header, nil)
 	return c.EngineInstance.VerifyHeader(chain, header, seal)
 }
 
@@ -125,24 +135,16 @@ func (c *CliquePoCR) VerifyHeader(chain consensus.ChainHeaderReader, header *typ
 // the input slice).
 
 func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
-	go func() {
-		for i, header := range headers {
-			c.buildSealersList(chain, header, headers[:i])
-		}
-	}()
+	log.Info("VerifyHeaders", "number[0]", headers[0].Number, "nb", len(headers))
+
+	// for i, header := range headers {
+	// 	c.buildSealersList(chain, header, headers[:i])
+	// }
+	// go func() {
+	// }()
 	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
 }
 
-func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-	if header.Number != nil {
-		number := header.Number.Uint64()
-		if c.signersListLastBlock != number {
-			c.signersList, _ = c.getSigners(chain, header, parents)
-			c.signersListLastBlock = number
-		}
-	}
-	return nil
-}
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given EngineInstance.
@@ -155,6 +157,8 @@ func (c *CliquePoCR) VerifyUncles(chain consensus.ChainReader, block *types.Bloc
 // rules of a particular EngineInstance. The changes are executed inline.
 
 func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	log.Info("Prepare", "number", header.Number)
+
 	return c.EngineInstance.Prepare(chain, header)
 }
 
@@ -164,7 +168,9 @@ func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.He
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
 func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	accumulateRewards(c, chain.Config(), state, header, uncles)
+	log.Info("Finalize", "number", header.Number)
+	// c.buildSealersList(chain, header, nil)
+	blockPostProcessing(c, chain, state, header, uncles)
 	// Finalize
 	c.EngineInstance.Finalize(chain, header, state, txs, uncles)
 }
@@ -176,7 +182,9 @@ func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.H
 // consensus rules that happen at finalization (e.g. block rewards).
 
 func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	accumulateRewards(c, chain.Config(), state, header, uncles)
+	log.Info("FinalizeAndAssemble", "number", header.Number)
+	// c.buildSealersList(chain, header, nil)
+	blockPostProcessing(c, chain, state, header, uncles)
 	// Finalize block
 	return c.EngineInstance.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
@@ -188,6 +196,8 @@ func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, head
 // than one result may also be returned depending on the consensus algorithm.
 
 func (c *CliquePoCR) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	log.Info("Seal", "number", block.Number())
+
 	return c.EngineInstance.Seal(chain, block, results, stop)
 }
 
@@ -220,42 +230,87 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 	c.EngineInstance.Authorize(signer, signFn)
 }
 
+// ########################################################################################################################
+// ########################################################################################################################
+
+
+// ########################################################################################################################
+// ## IMPLEMENTS THE consensus.ManageFees INTERFACE
+// ########################################################################################################################
+
+
 func (c *CliquePoCR) ManageFees(state vm.StateDB, fee *consensus.TxFee) error {
 	
 	if (!fee.IsFake) {
 		log.Info("Managing fees in cliquepcr", "isFake", fee.IsFake,"address", fee.Receiver, "fee", fee.Received)
+		// will need to 
 		state.AddBalance(fee.Receiver, fee.Received)
 	}
 
 	return nil
 }
 
-// AccumulateRewards credits the coinbase of the given block with the mining
+// ########################################################################################################################
+// ########################################################################################################################
+
+
+
+// ########################################################################################################################
+// ##  PRIVATE IMPLEMENTATION PART
+// ########################################################################################################################
+
+
+// blockPostProcessing will credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
-// included uncles. The coinbase of each uncle block is also rewarded.
-func accumulateRewards(c *CliquePoCR, config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	// log.Info("AccumulateRewards", "blockNumber", header.Number.String())
-	// Select the correct block reward based on chain progression
+// included transactions. The reward will depends on the carbon footprint of the node.
+func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	// skip block 0
+	if header.Number.Int64() <= 0 {
+		return
+	}
+	
+	// Get the block sealer
 	author, err := c.Author(header)
 	if err != nil {
 		// log.Error("Fail getting the Author of the block")
 		author = c.EngineInstance.Signer
 	}
 
-	blockReward, err := calcCarbonFootprintReward(c, author, config, state, header)
-	// if it could not be calculated or if the calculation returned zero
-	if err != nil || blockReward.Sign() == 0 {
-		log.Info("No reward for signer", "node", author.String(), "error", err)
+	footprint, rank, nbNodes, totalCrypto, err := calcCarbonFootprintRanking(c, chain, author, state, header)
+	// if it could not be calculated 
+	if err != nil {
+		log.Info("Fail calculating the node ranking", "node", author.String(), "error", err)
 		return
 	}
-	// Accumulate the rewards for the miner and any included uncles
-	// reward := new(big.Int).Set(blockReward)
-	// log.Info("Accumulate Reward", author.Hex(), reward)
-	state.AddBalance(author, blockReward)
 
-	// AddBalance to a non accessible account storage to just accrue the total amount of crypto created a
-	// and use this as a control of the monetary creation policy
-	addTotalCryptoBalance(state, blockReward)
+	blockReward, err := calcCarbonFootprintReward(c, author, header, footprint, rank, nbNodes, totalCrypto)
+	// if it could not be calculated 
+	if err != nil {
+		log.Info("Fail calculating the block reward", "node", author.String(), "error", err)
+		return
+	}
+	feeAdjustment, err := calcCarbonFootprintTxFee(c, author, header)
+	// if it could not be calculated 
+	if err != nil {
+		log.Info("Fail calculating the Tx fee adjustment", "node", author.String(), "error", err)
+		return
+	}
+
+	if blockReward.Sign() != 0 {
+		// log.Info("Accumulate Reward", author.Hex(), reward)
+		// Accumulate the rewards for the miner and any included uncles
+		state.AddBalance(author, blockReward)
+		// AddBalance to a non accessible account storage to just accrue the total amount of crypto created a
+		// and use this as a control of the monetary creation policy
+		addTotalCryptoBalance(state, blockReward)
+	}
+
+	if feeAdjustment.Sign() == 1 {
+		state.AddBalance(author, feeAdjustment)
+	} else if feeAdjustment.Sign() == -1 {
+		state.SubBalance(author, new(big.Int).Abs(feeAdjustment))
+	}
+
 }
 
 func getTotalCryptoBalance(state *state.StateDB) *big.Int {
@@ -271,114 +326,86 @@ func addTotalCryptoBalance(state *state.StateDB, reward *big.Int) *big.Int {
 	return newTotal
 }
 
-func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) (*big.Int, error) {
-	// skip block 0
-	if header.Number.Int64() <= 0 {
-		return nil, errors.New("cannot support genesis block")
-	}
+func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader, author common.Address, state *state.StateDB, header *types.Header) (footprint *big.Int, rank *big.Rat, nbNodes int, totalCrypto *big.Int, err error) {
 	log.Info("calcCarbonFootprintReward ", "header.Number", header.Number)
-	contract := NewCarbonFootPrintContract(address, config, state, header)
-	nbNodes, err := contract.nbNodes()
-	log.Info("calcCarbonFootprintReward ", "nbNodes ", nbNodes)
+	contract := NewCarbonFootPrintContract(author, chain.Config(), state, header)
+
+	signers, err := c.getSigners(chain, header, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, 0, nil, err
 	}
-	if nbNodes.Uint64() == 0 {
-		return nil, errors.New("no node in PoCR smart contract")
-	}
+
 	// Define an array to store all nodes footprint
-	var allNodesFootprint []*big.Int
-	// get the current caller-sealer footprint
-	signerNodefootprint, err := contract.footprint(address)
-	log.Info("calcCarbonFootprintReward ", "signerNodefootprint ", signerNodefootprint)
+	allNodesFootprint := []*big.Int{}
+	for _, signerAddress := range signers {
+		log.Debug("Signer found", "address", signerAddress)
+		f, err := contract.footprint(signerAddress)
+		if err == nil {
+			allNodesFootprint = append(allNodesFootprint, f)
+			// if the current sealer is our block author, keep its footprint
+			if bytes.Compare(signerAddress.Bytes(), author.Bytes()) == 0 {
+				footprint = f
+			}
+		}
+	}
+
+	// get the ranking as a value between 0 and 1
+	r, N, err := c.computation.CalculateRanking(footprint, allNodesFootprint)
+	if err != nil {
+		return nil, nil, 0, nil, err
+	}
+
+	M := getTotalCryptoBalance(state)
+
+	return footprint, r, N, M, nil
+}
+
+func calcCarbonFootprintTxFee(c *CliquePoCR, address common.Address, header *types.Header) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, header *types.Header, footprint *big.Int, rank *big.Rat, nbNodes int, totalCrypto *big.Int) (*big.Int, error) {
+
+	reward, err := c.computation.CalculateCarbonFootprintReward(rank, nbNodes, totalCrypto)
 	if err != nil {
 		return nil, err
 	}
 
-	if signerNodefootprint.Uint64() == 0 {
-		return nil, errors.New("no footprint for sealer")
-	}
-
-	var reward *big.Int
-	var rewardError error
-	for i, signerAddress := range c.signersList {
-		allNodesFootprint[i], _ = contract.footprint(signerAddress)
-	}
-	totalCrypto := getTotalCryptoBalance(state)
-	log.Info("calcCarbonFootprintReward ", "totalCrypto ", totalCrypto)
-	reward, rewardError = raceRankComputation.CalculateCarbonFootprintRewardCollection(allNodesFootprint, signerNodefootprint, totalCrypto)
-	if rewardError != nil {
-		return nil, err
-	}
-
-	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalCrypto, "nb", nbNodes, "footprint", signerNodefootprint, "reward", reward)
+	log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalCrypto, "nb", nbNodes, "rank", rank.FloatString(5), "reward", reward)
 	return reward, nil
 }
 
-type CarbonFootprintContract struct {
-	ContractAddress common.Address
-	RuntimeConfig   *runtime.Config
-}
 
-func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) CarbonFootprintContract {
-	contract := CarbonFootprintContract{}
-	contract.ContractAddress = common.HexToAddress(proofOfCarbonReductionContractAddress)
-	block := big.NewInt(0).Sub(header.Number, big.NewInt(1))
-	stateCopy := state.Copy() // necessary to work on the copy of the state when performing a call
-	cfg := runtime.Config{ChainConfig: config, Origin: nodeAddress, GasLimit: 1000000, State: stateCopy, BlockNumber: block}
-	contract.RuntimeConfig = &cfg
-	return contract
-}
-
-func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
-	input := common.Hex2Bytes("b6c3dcf8")
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the total carbon footprint", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Total Carbon footprint", "result", common.Bytes2Hex(result))
-		return common.BytesToHash(result).Big(), nil
-	}
-}
-func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
-	input := common.Hex2Bytes("03b2ec98")
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the number of nodes in carbon footprint contract", "err", err.Error(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Carbon footprint nb nodes", "result", common.Bytes2Hex(result))
-		return common.BytesToHash(result).Big(), nil
-	}
-}
-func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.Int, error) {
-	addressString := ofNode.String()
-	addressString = addressString[2:]
-
-	input := common.Hex2Bytes("79f85816000000000000000000000000" + addressString)
-	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
-	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
-	if err != nil {
-		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
-		return nil, err
-	} else {
-		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
-		return common.BytesToHash(result).Big(), nil
-	}
-}
+// func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
+// 	log.Debug("buildSealersList", "header.Number", header.Number, "lastBlock", c.signersListLastBlock)
+// 	if header.Number != nil {
+// 		number := header.Number.Uint64()
+// 		if c.signersListLastBlock != number {
+// 			list, err := c.getSigners(chain, header, parents)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			c.signersList = list
+// 			log.Debug("buildSealersList", "list", c.signersList)
+// 			c.signersListLastBlock = number
+// 		}
+// 	}
+// 	return nil
+// }
 
 func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
 	number := header.Number.Uint64()
 
 	// Retrieve the snapshot needed to verify this header and cache it
 	snap, err := c.EngineInstance.Snapshot(chain, number-1, header.ParentHash, parents)
-	// If the block is a checkpoint block, verify the signer list
-	if number%c.config.Epoch == 0 {
-		signersArray := snap.GetSigners()
-		return signersArray, err
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("Invalid Epoch when getting Signers list")
+	log.Debug("getSigners", "snap", snap)
+	// If the block is a checkpoint block, verify the signer list
+	// if number%c.config.Epoch == 0 {
+	signersArray := snap.GetSigners()
+	return signersArray, nil
+	// }
+	// return nil, errors.New("Invalid Epoch when getting Signers list")
 }

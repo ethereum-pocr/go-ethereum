@@ -2,105 +2,121 @@ package cliquepcr
 
 import (
 	"errors"
-	"math"
+	// "math"
 	"math/big"
 	"sort"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // The standard WhitePaper computation
 type RaceRankComputation struct {
+	rankArray          []*big.Rat
 }
+
+func NewRaceRankComputation() IRewardComputation {
+	return &RaceRankComputation{
+		rankArray: []*big.Rat{big.NewRat(1,1)},
+	}
+}
+
+func (wp *RaceRankComputation) getRanking(rank int) *big.Rat {
+	// calculate the rational value for the given index if it does not already exists
+	previous := wp.rankArray[len(wp.rankArray)-1]
+	for i := len(wp.rankArray); i <= rank; i++ {
+		// multiply the previous one by 0,9
+		previous = new(big.Rat).Mul(previous, big.NewRat(9,10))
+		wp.rankArray = append(wp.rankArray, previous)
+	}
+	return wp.rankArray[rank]
+}
+
 
 func (wp *RaceRankComputation) GetAlgorithmId() int {
 	return 3
 }
 
+
 // On an annual basis, what is the minimimum amount of CRC tokens that have to be generated each year
-var minRequiredInflation = 0.03
+// var minRequiredInflation = 0.03
+// Inflation control speed at 10^7
+var inflationDenominator = new(big.Int).Exp(big.NewInt(10), big.NewInt(7), nil)
+// var alpha = 2
 
-// Public function for auditing, but used internally only
-func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int) (float64, error) {
-	// L = M / (8 000 000 * 30 / 3) // as integer value
-	// D = 2^L // The divisor : 2 at the power of L
-	// GlobalInflationControl = 1/D // 1; 1/2; 1/4; 1/8 ....
-
-	// If there is no crpto created, return 1
-	if M.Cmp(zero) == 0 {
-		return 1, nil
-	}
-	// L = TotalCRC / SimulationVariables().InflationDenominator
-	// D = pow(SimulationVariables().alpha, L)
-	// self.StandardWhitePaperComputation.CurrentGlobalInflation  = 1/D
-	C := big.NewInt(100000)
-	C = C.Mul(C, CTCUnit)
-	L := new(big.Rat).SetFrac(M, C)
-
-	L2 := new(big.Int).Quo(L.Num(), L.Denom()).Uint64()
-	L3 := float64(L2)
-
-	res := 1 / math.Pow(1.5, L3)
-	return res, nil
-}
-func (wp *RaceRankComputation) CalculateCarbonFootprintRewardCollection(nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int) (*big.Int, error) {
+func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootprint []*big.Int) (rank *big.Rat, nbNodes int, err error) {
 	if footprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative footprint")
+		return nil, 0, errors.New("cannot proceed with zero or negative footprint")
 	}
-	if len(nodesFootprint) < 2 {
-		return nil, errors.New("Not enough nodes carbon footprint to compute the reward")
+	var NbItemsAbove int
+	nbNodes = len(nodesFootprint)
+	
+	if nbNodes == 0 {
+		return nil, 0, errors.New("cannot rank zero node")
 	}
 	sort.Slice(nodesFootprint, func(a, b int) bool {
-		// sort direction high before low.
+		// sort direction low before high.
 		return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
 	})
-	// NbItemsAbove is the number of items above the current footprint
-	var NbItemsAbove int
-	N := len(nodesFootprint)
 
-	if N == 0 {
-		return nil, errors.New("cannot average with zero node")
-	}
-
-	if footprint.Cmp(zero) <= 0 {
-		return nil, errors.New("cannot proceed with zero or negative footprint")
-	}
-
-	for i := 0; i < N; i++ {
+	for i := 0; i < nbNodes; i++ {
 		if nodesFootprint[i].Cmp(footprint) == -1 {
 			NbItemsAbove++
 		}
-		/*
-			if i == 0 {
-				if nodesFootprint[i].Cmp(footprint) == -1 {
-					NbItemsAbove++
-				}
-			} else if nodesFootprint[i].Cmp(nodesFootprint[i-1]) != 0 {
-				if nodesFootprint[i].Cmp(footprint) == -1 {
-					NbItemsAbove++
-				}
-			}
-		*/
 	}
-	reward := math.Pow(0.9, float64(NbItemsAbove))
+	rank = wp.getRanking(NbItemsAbove)
+	log.Debug("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
+	log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)
+	// log.Debug("RaceRankComputation.CalculateRanking", "rank 9", wp.getRanking(9))
+	// log.Debug("RaceRankComputation.CalculateRanking", "rank 99", wp.getRanking(99))
 
-	globalInflationFactor, errorGIF := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
-	if errorGIF != nil {
-		return nil, errorGIF
+	return rank, nbNodes, nil
+}
+
+// Public function for auditing, but used internally only
+func (wp *RaceRankComputation) calculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
+	// L = TotalCRC / InflationDenominator
+	// D = pow(alpha, L)
+	// GlobalInflation  = 1/D
+
+
+	// If there is no crpto created, return 1
+	if M.Cmp(zero) == 0 {
+		return big.NewRat(1,1), nil
 	}
-	a := new(big.Float).Mul(big.NewFloat(reward), big.NewFloat(globalInflationFactor))
-	b := new(big.Float).Mul(a, big.NewFloat(float64(CTCUnit.Uint64())))
-	rewardCRCUnit := new(big.Float).Mul(b, big.NewFloat(float64(N)))
 
-	// minReward := float64(totalCryptoAmount.Int64()) * minRequiredInflation * 365 * 24 * 3600 / float64(4)
-	// minRewardCRCUnit := new(big.Float).Mul(big.NewFloat(minReward), big.NewFloat(float64(CTCUnit.Uint64())))
+	L := new(big.Rat).SetFrac(M, new(big.Int).Mul(CTCUnit, inflationDenominator))
 
-	// Ignore at this step
-	// if rewardCRCUnit.Cmp(minRewardCRCUnit) < 0 {
-	//	rewardCRCUnit = minRewardCRCUnit
-	// }
+	L = L.Mul(L, big.NewRat(7, 10)) // mul by 0,7 to be able to apply the limited devt on alpha = 2
+	// resolve the alpha^L in big.Int by using limited development formula
+	// 𝛴 (x^k)/k! with 4 levels only
+	D := big.NewRat(1,1) // D = 1
+	D = D.Add(D, L) // 1 + L
 
-	// minRewardCRCUnit.Int()
+	L2 := new(big.Rat).Mul(L, L) // L^2
+	D = D.Add(D, new(big.Rat).Mul(L2, big.NewRat(1,2))) // + L^2 / 2
+	L2 = L2.Mul(L2, L) // L^3
+	D = D.Add(D, new(big.Rat).Mul(L2, big.NewRat(1,6))) // + L^3 / 6
+	L2 = L2.Mul(L2, L) // L^4
+	D = D.Add(D, new(big.Rat).Mul(L2, big.NewRat(1,24))) // + L^3 / 24
 
-	u, _ := rewardCRCUnit.Int(nil)
+	return D.Inv(D), nil
+}
+
+func (wp *RaceRankComputation) CalculateCarbonFootprintReward(rank *big.Rat, nbNodes int, totalCryptoAmount *big.Int) (*big.Int, error) {
+	// In CRC Unit : 0.9^rank
+	rewardCRCUnit := new(big.Rat).Mul(rank, new(big.Rat).SetInt(CTCUnit))
+
+	// 0.9^rank x N
+	rewardCRCUnit = rewardCRCUnit.Mul(rewardCRCUnit, big.NewRat(int64(nbNodes), 1))
+
+	// 0.9^rank x N * Inflation
+	inflationFactor, err := wp.calculateGlobalInflationControlFactor(totalCryptoAmount)
+	if err != nil {
+		return nil, err
+	}
+	rewardCRCUnit = rewardCRCUnit.Mul(rewardCRCUnit, inflationFactor)
+
+	u := new(big.Int).Div(rewardCRCUnit.Num(), rewardCRCUnit.Denom())  
 
 	return u, nil
 }
