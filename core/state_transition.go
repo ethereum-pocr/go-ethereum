@@ -365,33 +365,15 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 		spent = big.NewInt(0)
 		burnt = big.NewInt(0)
 	} else {
-		// log.Info("fee management: ", "isFake", st.msg.IsFake(),"spent", spent, "received", received, "burnt", burnt)
-		if managefee, ok := engine.(consensus.ManageFees); ok {
-			fee := &consensus.TxFee{
-				IsFake: st.msg.IsFake(),
-				Spender: st.msg.From(),
-				Receiver: st.evm.Context.Coinbase,
-				Spent: spent,
-				Received: received,
-				Burnt: burnt,
-			}
-			// log.Info("fee management ok: ", "fee", fee)
-			err1 := managefee.ManageFees(st.state, fee)
-			if err1 != nil {
-				return nil, err1
-			}
-		} else {
-			// log.Info("fee management not ok: ", "fee", received)
-			st.state.AddBalance(st.evm.Context.Coinbase, received)
-		}
+		st.state.AddBalance(st.evm.Context.Coinbase, received)
 	}
 	return &ExecutionResult{
-		UsedGas:    st.gasUsed(),
-		FeeSpent:   spent,
+		UsedGas:        st.gasUsed(),
+		FeeSpent:       spent,
 		FeeTransferred: received,
-		FeeBurnt:   burnt,
-		Err:        vmerr,
-		ReturnData: ret,
+		FeeBurnt:       burnt,
+		Err:            vmerr,
+		ReturnData:     ret,
 	}, nil
 }
 

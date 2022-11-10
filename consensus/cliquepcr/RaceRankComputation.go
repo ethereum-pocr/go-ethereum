@@ -4,9 +4,9 @@ import (
 	"errors"
 	// "math"
 	"math/big"
-	"sort"
+	// "sort"
 
-	// "github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // The standard WhitePaper computation
@@ -37,11 +37,6 @@ func (wp *RaceRankComputation) GetAlgorithmId() int {
 }
 
 
-// On an annual basis, what is the minimimum amount of CRC tokens that have to be generated each year
-// var minRequiredInflation = 0.03
-// Inflation control speed at 10^7
-var inflationDenominator = new(big.Int).Exp(big.NewInt(10), big.NewInt(7), nil)
-// var alpha = 2
 
 func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootprint []*big.Int) (rank *big.Rat, nbNodes int, err error) {
 	if footprint.Cmp(zero) <= 0 {
@@ -53,19 +48,21 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 	if nbNodes == 0 {
 		return nil, 0, errors.New("cannot rank zero node")
 	}
-	sort.Slice(nodesFootprint, func(a, b int) bool {
-		// sort direction low before high.
-		return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
-	})
+	// Sorting is not necessary if we parse the total list of the nodes
+	// sort.Slice(nodesFootprint, func(a, b int) bool {
+	// 	// sort direction low before high.
+	// 	return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
+	// })
 
 	for i := 0; i < nbNodes; i++ {
-		if nodesFootprint[i].Cmp(footprint) == -1 {
+		// node footprint is lower than current node but not zero
+		if nodesFootprint[i].Cmp(footprint) == -1 && nodesFootprint[i].Cmp(zero) > 0 {
 			NbItemsAbove++
 		}
 	}
 
 	rank = wp.getRanking(NbItemsAbove)
-	// log.Debug("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
+	log.Info("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
 	// log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)
 	// log.Debug("RaceRankComputation.CalculateRanking", "rank 9", wp.getRanking(9))
 	// log.Debug("RaceRankComputation.CalculateRanking", "rank 99", wp.getRanking(99))
@@ -73,7 +70,12 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 	return rank, nbNodes, nil
 }
 
-// Public function for auditing, but used internally only
+// On an annual basis, what is the minimimum amount of CRC tokens that have to be generated each year
+// Inflation control speed at 10^6
+var inflationDenominator = big.NewInt(10000000)
+// Minimum creation of CRC per bloc 10^5 per year
+var minCreationPerBlock = new(big.Rat).Mul(big.NewRat(100000, 365*24*3600/4), new(big.Rat).SetInt(CTCUnit))
+
 func (wp *RaceRankComputation) calculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
 	// L = TotalCRC / InflationDenominator
 	// D = pow(alpha, L)
@@ -87,7 +89,7 @@ func (wp *RaceRankComputation) calculateGlobalInflationControlFactor(M *big.Int)
 
 	L := new(big.Rat).SetFrac(M, new(big.Int).Mul(CTCUnit, inflationDenominator))
 
-	L = L.Mul(L, big.NewRat(7, 10)) // mul by 0,7 to be able to apply the limited devt on alpha = 2
+	L = L.Mul(L, big.NewRat(72, 100)) // mul by 0,72 to be able to apply the limited devt on alpha = 2
 	// resolve the alpha^L in big.Int by using limited development formula
 	// 𝛴 (x^k)/k! with 4 levels only
 	D := big.NewRat(1,1) // D = 1
@@ -116,6 +118,11 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintReward(rank *big.Rat, nbN
 		return nil, err
 	}
 	rewardCRCUnit = rewardCRCUnit.Mul(rewardCRCUnit, inflationFactor)
+
+	// apply the minimum reward if needed
+	if rewardCRCUnit.Cmp(minCreationPerBlock) == -1 {
+		rewardCRCUnit = minCreationPerBlock
+	}
 
 	u := new(big.Int).Div(rewardCRCUnit.Num(), rewardCRCUnit.Denom())  
 
