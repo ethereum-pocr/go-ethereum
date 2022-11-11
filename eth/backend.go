@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/clique"
-	"github.com/ethereum/go-ethereum/consensus/cliquepcr"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -402,9 +401,7 @@ func (s *Ethereum) shouldPreserve(header *types.Header) bool {
 	// is A, F and G sign the block of round5 and reject the block of opponents
 	// and in the round6, the last available signer B is offline, the whole
 	// network is stuck.
-	if _, ok := s.EthereumEngine.(*cliquepcr.CliquePoCR); ok {
-		return false
-	} else if _, ok := s.EthereumEngine.(*clique.Clique); ok {
+	if _, ok := s.EthereumEngine.(clique.CliqueEngine); ok {
 		return false
 	}
 	return s.isLocalBlock(header)
@@ -448,29 +445,17 @@ func (s *Ethereum) StartMining(threads int) error {
 			log.Error("Cannot start mining without etherbase", "err", err)
 			return fmt.Errorf("etherbase missing: %v", err)
 		}
-		var cli *clique.Clique
-
-		var clipcr *cliquepcr.CliquePoCR
-		if c, ok := s.EthereumEngine.(*cliquepcr.CliquePoCR); ok {
-			clipcr = c
-		}
-		if c, ok := s.EthereumEngine.(*clique.Clique); ok {
+		var cli clique.CliqueEngine
+		if c, ok := s.EthereumEngine.(clique.CliqueEngine); ok {
 			cli = c
 		} else if cl, ok := s.EthereumEngine.(*beacon.Beacon); ok {
-			if c, ok := cl.InnerEngine().(*clique.Clique); ok {
+			if c, ok := cl.InnerEngine().(clique.CliqueEngine); ok {
 				cli = c
-			} else if c, ok := cl.InnerEngine().(*cliquepcr.CliquePoCR); ok {
-				clipcr = c
-			}
+			} 
 		}
-		if clipcr != nil {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			clipcr.Authorize(eb, wallet.SignData)
-		} else if cli != nil {
+		if cli != nil {
+			// added to deactivate the preseal of empty block as it is not necessary for Clique
+			s.miner.DisablePreseal()
 			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
 			if wallet == nil || err != nil {
 				log.Error("Etherbase account unavailable locally", "err", err)

@@ -1,4 +1,4 @@
-package cliquepcr
+package cliquepocr
 
 import (
 	"fmt"

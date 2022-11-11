@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package clique implements the proof-of-authority consensus engine.
-package cliquepcr
+package cliquepocr
 
 import (
 	"bytes"
@@ -51,13 +51,13 @@ var (
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes, that could be overrided from default Clique
 )
 
-
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
 
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
+
 // var raceRankComputation = NewRaceRankComputation()
 
 type CliquePoCR struct {
@@ -75,10 +75,10 @@ type CliquePoCR struct {
 
 	// The fields below are for testing only
 	// fakeDiff             bool // Skip difficulty verifications
-	EngineInstance       *clique.Clique
+	EngineInstance *clique.Clique
 	// signersList          []common.Address
 	// signersListLastBlock uint64
-	computation          IRewardComputation
+	computation IRewardComputation
 }
 
 func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
@@ -96,7 +96,7 @@ func New(config *params.CliqueConfig, db ethdb.Database) *CliquePoCR {
 		signatures:     signatures,
 		proposals:      make(map[common.Address]bool),
 		EngineInstance: clique.New(config, db),
-		computation: NewRaceRankComputation(),
+		computation:    NewRaceRankComputation(),
 	}
 }
 
@@ -133,7 +133,6 @@ func (c *CliquePoCR) VerifyHeaders(chain consensus.ChainHeaderReader, headers []
 	return c.EngineInstance.VerifyHeaders(chain, headers, seals)
 }
 
-
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given EngineInstance.
 
@@ -157,10 +156,10 @@ func (c *CliquePoCR) Prepare(chain consensus.ChainHeaderReader, header *types.He
 // consensus rules that happen at finalization (e.g. block rewards).
 // This function is called when the block is imported from another node
 // It does not receive the transaction receipt (that'a shame because it contains the gas used)
-// Hence the reason for putting the extra fields in the tx 
+// Hence the reason for putting the extra fields in the tx
 func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
-	log.Info("Finalize", "number", header.Number)
-	blockPostProcessing(c, chain, state, header, txs)
+	// log.Info("Finalize", "number", header.Number)
+	blockPostProcessing(c, chain, state, header, txs, false)
 	// Finalize
 	c.EngineInstance.Finalize(chain, header, state, txs, uncles)
 }
@@ -170,11 +169,11 @@ func (c *CliquePoCR) Finalize(chain consensus.ChainHeaderReader, header *types.H
 //
 // Note: The block header and state database might be updated to reflect any
 // consensus rules that happen at finalization (e.g. block rewards).
-// This function is called when the block is created by this node 
-// It receive the transaction receipt but since the Finalize receive the fee info from the tx , we'll do the same 
+// This function is called when the block is created by this node
+// It receive the transaction receipt but since the Finalize receive the fee info from the tx , we'll do the same
 func (c *CliquePoCR) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	log.Info("FinalizeAndAssemble", "number", header.Number)
-	blockPostProcessing(c, chain, state, header, txs)
+	// log.Info("FinalizeAndAssemble", "number", header.Number)
+	blockPostProcessing(c, chain, state, header, txs, true)
 	// Finalize block
 	return c.EngineInstance.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 }
@@ -223,71 +222,84 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 // ########################################################################################################################
 // ########################################################################################################################
 
-
 // ########################################################################################################################
 // ##  PRIVATE IMPLEMENTATION PART
 // ########################################################################################################################
 
-
 // blockPostProcessing will credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included transactions. The reward will depends on the carbon footprint of the node.
-func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, txs []*types.Transaction) {
+// newBlock (bool) is true when called by FinalizeAndAssemble ie when the block is to be created and signed by this node
+// else newBlock will be false when called by Finalize ie when called for an imported block signed by another node
+func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, txs []*types.Transaction, newBlock bool) {
 	// skip block 0
 	if header.Number.Int64() <= 0 {
 		return
 	}
-	
-	// Get the block sealer when the block is signed by another node
-	author, err := c.Author(header)
-	if err != nil {
+
+	// author is the sealer address of the block being processed
+	var author common.Address
+	if newBlock {
 		// the block is not yet signed so we are signing it
 		author = c.EngineInstance.Signer
+	} else {
+		var err error
+		// Get the block sealer when the block is signed by another node
+		author, err = c.Author(header)
+		if err != nil {
+			// the sealer is invalid in this received block, do not even bother processing anything
+			// the clique implementation VerifyHeader will cover that case
+			return
+		}
 	}
+
+	// blockReward is the reward for the sealer for creating that block. It does not contains the fees
 	blockReward := big.NewInt(0)
 
 	footprint, rank, nbNodes, totalCrypto, err := calcCarbonFootprintRanking(c, chain, author, state, header)
 	if err != nil {
-		// if it could not be calculated 
+		// if it could not be calculated
 		log.Warn("Fail calculating the node ranking", "node", author.String(), "error", err)
 
 	} else {
 		// ranking successfully calculated
 		r, err := calcCarbonFootprintReward(c, author, header, footprint, rank, nbNodes, totalCrypto)
-		// if it could not be calculated 
+		// if it could not be calculated
 		if err != nil {
 			log.Warn("Fail calculating the block reward", "node", author.String(), "error", err)
 		} else {
 			blockReward = r
 		}
 	}
-	
+
 	if blockReward.Sign() > 0 {
-		// log.Info("Accumulate Reward", author.Hex(), reward)
-		// Accumulate the rewards for the miner and any included uncles
+		// Accumulate the rewards for the miner
 		state.AddBalance(author, blockReward)
-		// AddBalance to a non accessible account storage to just accrue the total amount of crypto created a
+		// AddBalance to a non accessible account storage to just accrue the total amount of crypto created
 		// and use this as a control of the monetary creation policy
 		addTotalCryptoBalance(state, blockReward)
 	}
 	if rank == nil {
 		// if the ranking was not successfully calculated, force it to a zero ranking so fees are zeroed
-		rank = big.NewRat(0,1)
+		rank = big.NewRat(0, 1)
 	}
 	feeAdjustment, burnt := calcCarbonFootprintTxFee(c, author, header, rank, txs)
 
 	// Update the fees even if the block reward could not be calculated
 	if feeAdjustment.Sign() == 1 {
+		// Should not happen to add more fee to the account but let's cover this case anyway
 		state.AddBalance(author, feeAdjustment)
+		// add the created crypto as the fees comes from noone
+		addTotalCryptoBalance(state, feeAdjustment)
 	} else if feeAdjustment.Sign() == -1 {
 		// remove the over received fee
 		state.SubBalance(author, new(big.Int).Abs(feeAdjustment))
-		// remove the un earned (burned)
+		// remove the un earned (burned) fees
 		addTotalCryptoBalance(state, feeAdjustment)
 	}
-	
+
 	if burnt.Sign() != 0 {
-		// remove the burned fee
+		// remove the burned fee from the EIP-1559 from the crypto counter
 		addTotalCryptoBalance(state, burnt.Neg(burnt))
 	}
 
@@ -313,7 +325,7 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 
 	signers, err := c.getSigners(chain, header, nil)
 	if err != nil {
-		return nil, big.NewRat(0,1), 0, nil, err
+		return nil, big.NewRat(0, 1), 0, nil, err
 	}
 
 	// Define an array to store all nodes footprint
@@ -332,13 +344,13 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 
 	// a Zero carbon footprint means no footprint at all
 	if footprint.Cmp(big.NewInt(0)) == 0 {
-		return nil, big.NewRat(0,1), 0, nil, errors.New("sealer does not have a footprint")
+		return nil, big.NewRat(0, 1), 0, nil, errors.New("sealer does not have a footprint")
 	}
 
 	// get the ranking as a value between 0 and 1
 	r, N, err := c.computation.CalculateRanking(footprint, allNodesFootprint)
 	if err != nil {
-		return nil, big.NewRat(0,1), 0, nil, err
+		return nil, big.NewRat(0, 1), 0, nil, err
 	}
 
 	M := getTotalCryptoBalance(state)
@@ -373,7 +385,6 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, header *ty
 	// log.Info("Calculated reward based on footprint", "block", header.Number, "node", address.String(), "total", totalCrypto, "nb", nbNodes, "rank", rank.FloatString(5), "reward", reward)
 	return reward, nil
 }
-
 
 // func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 // 	log.Debug("buildSealersList", "header.Number", header.Number, "lastBlock", c.signersListLastBlock)

@@ -1,4 +1,3 @@
-
 // Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
@@ -16,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package clique implements the proof-of-authority consensus engine.
-package cliquepcr
+package cliquepocr
 
 import (
 	// "errors"
@@ -30,10 +29,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
 var proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
-
 
 type CarbonFootprintContract struct {
 	ContractAddress common.Address
@@ -62,6 +59,7 @@ func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 		return common.BytesToHash(result).Big(), nil
 	}
 }
+
 // func (contract *CarbonFootprintContract) nbNodes() (*big.Int, error) {
 // 	input := common.Hex2Bytes("03b2ec98")
 // 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)

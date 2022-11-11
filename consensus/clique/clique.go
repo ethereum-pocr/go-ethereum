@@ -142,6 +142,13 @@ var (
 // SignerFn hashes and signs the data to be signed by a backing account.
 type SignerFn func(signer accounts.Account, mimeType string, message []byte) ([]byte, error)
 
+// Declare an interface for the Clique engine 
+type CliqueEngine interface {
+	consensus.Engine
+	
+	Authorize(signer common.Address, signFn SignerFn)
+}
+
 // ecrecover extracts the Ethereum account address from a signed header.
 func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, error) {
 	// If the signature's already cached, return that
