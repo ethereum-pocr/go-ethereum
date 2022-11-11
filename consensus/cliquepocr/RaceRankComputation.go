@@ -73,10 +73,15 @@ var inflationDenominator = big.NewInt(10000000)
 // Minimum creation of CRC per bloc 10^5 per year
 var minCreationPerBlock = new(big.Rat).Mul(big.NewRat(100000, 365*24*3600/4), new(big.Rat).SetInt(CTCUnit))
 
-func (wp *RaceRankComputation) calculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
+func (wp *RaceRankComputation) CalculateGlobalInflationControlFactor(M *big.Int) (*big.Rat, error) {
 	// L = TotalCRC / InflationDenominator
 	// D = pow(alpha, L)
 	// GlobalInflation  = 1/D
+
+	// If the amount of crypto is negative raise an error
+	if M.Sign() == -1 {
+		return big.NewRat(0,1), errors.New("negative total crypto amount is not possible")
+	}
 
 	// If there is no crpto created, return 1
 	if M.Cmp(zero) == 0 {
@@ -109,7 +114,7 @@ func (wp *RaceRankComputation) CalculateCarbonFootprintReward(rank *big.Rat, nbN
 	rewardCRCUnit = rewardCRCUnit.Mul(rewardCRCUnit, big.NewRat(int64(nbNodes), 1))
 
 	// 0.9^rank x N * Inflation
-	inflationFactor, err := wp.calculateGlobalInflationControlFactor(totalCryptoAmount)
+	inflationFactor, err := wp.CalculateGlobalInflationControlFactor(totalCryptoAmount)
 	if err != nil {
 		return nil, err
 	}

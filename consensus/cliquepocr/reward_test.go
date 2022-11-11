@@ -23,37 +23,58 @@ import (
 )
 
 func TestCalculateGlobalInflationControlFactor(t *testing.T) {
-	var rewardComputation RaceRankComputation
+	rewardComputation := NewRaceRankComputation()
 	n1 := new(big.Int)
-	n1, ok := n1.SetString("200000000000000000000000", 10)
+	n1, ok := n1.SetString("20000000000000000000000000", 10)
 	if !ok {
 		t.Errorf("SetString: error")
 		return
 	}
 	var factor, _ = rewardComputation.CalculateGlobalInflationControlFactor(n1)
-	a := float64(1 / math.Pow(1.5, 2))
-	if factor != a {
-		t.Errorf("Expected %20.6f\n got %20.6f\n", a, factor)
+	a := "0.240754"
+	b := factor.FloatString(6)
+	if b != a {
+		t.Errorf("Expected %s\n got %s\n", a, b)
 	}
 }
 
-func TestCalculateCarbonFootprintRewardCollection1(t *testing.T) {
-	var rewardComputation RaceRankComputation
+
+
+func TestCalculateRanking1(t *testing.T) {
+	rewardComputation := NewRaceRankComputation()
 	cf := make([]*big.Int, 3)
 	cf[0] = big.NewInt(100000)
 	cf[1] = big.NewInt(200000)
 	cf[2] = big.NewInt(300000)
 
-	// (nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int)
-	var reward, _ = rewardComputation.CalculateCarbonFootprintRewardCollection(cf, big.NewInt(150000), big.NewInt(1000000))
-	n1 := new(big.Int)
-	n1, ok := n1.SetString("2700000000000000000", 10)
-	if !ok {
-		t.Errorf("SetString: error")
-		return
+	var rank, nodes, _ = rewardComputation.CalculateRanking(big.NewInt(150000), cf)
+	n1 := math.Pow(0.9, 1)
+	n2, _ := rank.Float64()
+	if n1 != n2 {
+		t.Errorf("Expected %20.6f\n got %20.6f\n", n1, n2)
 	}
-	if reward.Cmp(n1) != 0 {
-
-		t.Errorf("Expected %20.6f\n got %20.6f\n", n1, reward)
+	if nodes != 3 {
+		t.Errorf("Expected %v\n got %v\n", 3, nodes)
 	}
 }
+
+// func TestCalculateCarbonFootprintReward1(t *testing.T) {
+// 	var rewardComputation RaceRankComputation
+// 	cf := make([]*big.Int, 3)
+// 	cf[0] = big.NewInt(100000)
+// 	cf[1] = big.NewInt(200000)
+// 	cf[2] = big.NewInt(300000)
+
+// 	// (nodesFootprint []*big.Int, footprint *big.Int, totalCryptoAmount *big.Int)
+// 	var reward, _ = rewardComputation.CalculateCarbonFootprintReward(cf, big.NewInt(150000), big.NewInt(1000000))
+// 	n1 := new(big.Int)
+// 	n1, ok := n1.SetString("2700000000000000000", 10)
+// 	if !ok {
+// 		t.Errorf("SetString: error")
+// 		return
+// 	}
+// 	if reward.Cmp(n1) != 0 {
+
+// 		t.Errorf("Expected %20.6f\n got %20.6f\n", n1, reward)
+// 	}
+// }
