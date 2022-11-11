@@ -23,15 +23,15 @@ jobs:
           apt-get install -y build-essential && \
           echo "Compiling all dependencies, running tests and coverage ..." && \
           make geth
-      - name: Run unit tests
-        # We should not block the release based on unit tests stalling (since those are yet unstable)
-        continue-on-error: true
-        run: |
-          go test ./... -coverprofile cover.out
+      # - name: Run unit tests
+      #   # We should not block the release based on unit tests stalling (since those are yet unstable)
+      #   continue-on-error: true
+      #   run: |
+      #     go test ./... -coverprofile cover.out
       - name: publish geth latest version
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ github.token }}
           file: build/bin/geth
           asset_name: geth
           tag: ${{ github.ref }}
