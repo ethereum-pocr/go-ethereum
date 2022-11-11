@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - master
+    - v7-impl
     tags:        
     - v*
 
