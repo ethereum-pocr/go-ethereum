@@ -47,6 +47,14 @@ func NewCarbonFootPrintContract(nodeAddress common.Address, config *params.Chain
 	return contract
 }
 
+// func NewCarbonFootPrintContractForUpdate(nodeAddress common.Address, config *params.ChainConfig, state *state.StateDB, header *types.Header) CarbonFootprintContract {
+// 	contract := CarbonFootprintContract{}
+// 	contract.ContractAddress = common.HexToAddress(proofOfCarbonReductionContractAddress)
+// 	cfg := runtime.Config{ChainConfig: config, Origin: nodeAddress, GasLimit: 1000000, State: state, BlockNumber: header.Number}
+// 	contract.RuntimeConfig = &cfg
+// 	return contract
+// }
+
 func (contract *CarbonFootprintContract) totalFootprint() (*big.Int, error) {
 	input := common.Hex2Bytes("b6c3dcf8")
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
@@ -87,3 +95,20 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 		return common.BytesToHash(result).Big(), nil
 	}
 }
+
+
+// func (contract *CarbonFootprintContract) clearFootprint(ofNode common.Address) (*big.Int, error) {
+// 	addressString := ofNode.String()
+// 	addressString = addressString[2:]
+
+// 	input := common.Hex2Bytes("79f85816000000000000000000000000" + addressString)
+// 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
+// 	// log.Info("Result/Err", "Result", common.Bytes2Hex(result), "Err", err.Error())
+// 	if err != nil {
+// 		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
+// 		return nil, err
+// 	} else {
+// 		// log.Info("Carbon footprint node", "result", common.Bytes2Hex(result), "node", ofNode.String())
+// 		return common.BytesToHash(result).Big(), nil
+// 	}
+// }

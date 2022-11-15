@@ -27,8 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-
 	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -356,7 +354,6 @@ func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResu
 	received.Mul(received, effectiveTip)
 	spent := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
 	burnt := new(big.Int).Sub(spent, received)
-	log.Debug("Fee Calculation", "spent", spent, "received", received, "burnt", burnt)
 	if st.evm.Config.NoBaseFee && st.gasFeeCap.Sign() == 0 && st.gasTipCap.Sign() == 0 {
 		// Skip fee payment when NoBaseFee is set and the fee fields
 		// are 0. This avoids a negative effectiveTip being applied to
