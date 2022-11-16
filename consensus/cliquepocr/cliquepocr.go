@@ -51,6 +51,8 @@ var (
 	epochLength = uint64(30000) // Default number of blocks after which to checkpoint and reset the pending votes, that could be overrided from default Clique
 )
 
+var zeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
+
 // Use a separate address for collecting the total crypto generated because the smart contract also needs to hold auditor pledge
 var sessionVariablesContractAddress = "0x0000000000000000000000000000000000000101"
 
@@ -303,6 +305,8 @@ func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state
 		addTotalCryptoBalance(state, burnt.Neg(burnt))
 	}
 
+	synchronizeSealers(c, chain, author, state, header)
+
 	log.Info("💵Sealer earnings", "block", header.Number, "node", author.String(), "rank", rank.FloatString(4), "blockReward", blockReward.String(), "feeAdjustment", feeAdjustment.String(), "burnt", burnt.String())
 }
 
@@ -343,7 +347,7 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 	}
 
 	// a Zero carbon footprint means no footprint at all
-	if footprint.Cmp(big.NewInt(0)) == 0 {
+	if footprint == nil || footprint.Cmp(zero) == 0 {
 		return nil, big.NewRat(0, 1), 0, nil, errors.New("sealer does not have a footprint")
 	}
 
@@ -411,11 +415,83 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types
 	if err != nil {
 		return nil, err
 	}
-	// log.Debug("getSigners", "snap", snap)
+	// log.Info("getSigners", "snap", snap)
 	// If the block is a checkpoint block, verify the signer list
 	// if number%c.config.Epoch == 0 {
 	signersArray := snap.GetSigners()
 	return signersArray, nil
 	// }
 	// return nil, errors.New("Invalid Epoch when getting Signers list")
+}
+
+func contains(array []common.Address, value common.Address) (bool) {
+	for _, v := range array {
+		if v == value {
+			return true;
+		}
+	}
+	return false
+}
+
+func synchronizeSealers(c *CliquePoCR, chain consensus.ChainHeaderReader, author common.Address, state *state.StateDB, header *types.Header) (error) {
+	signers, err := c.getSigners(chain, header, nil)
+	if err != nil {
+		return err
+	}
+	 /*
+	- pseudo code
+	// start by removing missing sealers
+	for i = 0 to nbNodes-1
+			s = sealers[i]
+			e = isSealer[s]
+			if s not in snapshot.sealers then 
+					isSealer[s] = false
+					sealers[i] = zero
+			
+	// now force the replication of the snapshot
+	for i = 0 to snapshot.sealers.length-1
+			s = sealers[i]
+			e = isSealer[snapshot.sealers[i]]
+			if s != snapshot.sealers[i] then
+					 sealers[i] = snapshot.sealers[i]
+			if not e then
+					 isSealer[snapshot.sealers[i]] = true
+	
+	// finally update the number of nodes
+	nbNodes = snapshot.sealers.length    
+	*/
+
+	contract := NewCarbonFootPrintContractForUpdate(author, chain.Config(), state, header)
+	nbNodes := contract.getNbNodes()
+
+	// log.Info("Synchronizing the sealers", "sc count", nbNodes, "actual", len(signers))
+
+	for i := uint64(0); i < nbNodes; i++ {
+		s := contract.getSealerAt(int64(i))
+		if !contains(signers, s) {
+			log.Info("Synchronizing the sealers", "deleting", s, "at", i)
+			contract.setIsSealerOf(s, false)
+			contract.setSealerAt(int64(i), zeroAddress)
+		}
+	}
+
+	for i, signer := range signers {
+		s := contract.getSealerAt(int64(i))
+		e := contract.getIsSealerOf(signer)
+		if s != signer {
+			log.Info("Synchronizing the sealers", "setting", signer, "at", i)
+			contract.setSealerAt(int64(i), signer)
+		}
+		if !e {
+			log.Info("Synchronizing the sealers", "enabling", signer)
+			contract.setIsSealerOf(signer, true)
+		}
+	}
+
+	if nbNodes != uint64(len(signers)) {
+		log.Info("Synchronizing the sealers", "nbNodes", len(signers))
+		contract.setNbNodes(int64(len(signers)))
+	}
+
+	return nil
 }
