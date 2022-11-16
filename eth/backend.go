@@ -454,7 +454,7 @@ func (s *Ethereum) StartMining(threads int) error {
 			} 
 		}
 		if cli != nil {
-			// added to deactivate the preseal of empty block as it is not necessary for Clique
+			// added to deactivate the preseal of empty block as it is not necessary for Clique. https://github.com/ethereum/go-ethereum/issues/26161
 			s.miner.DisablePreseal()
 			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
 			if wallet == nil || err != nil {
