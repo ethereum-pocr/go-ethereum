@@ -24,7 +24,7 @@ const (
 	VersionMajor = 1        // Major version component of the current release
 	VersionMinor = 10       // Minor version component of the current release
 	VersionPatch = 26       // Patch version component of the current release
-	VersionMeta  = "stable" // Version metadata to append to the version string
+	VersionMeta  = "pocr-2.0.0" // Version metadata to append to the version string
 )
 
 // Version holds the textual version string.

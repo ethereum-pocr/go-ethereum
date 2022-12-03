@@ -427,7 +427,9 @@ func (c *ChainConfig) String() string {
 			banner += "Consensus: Beacon (proof-of-stake), merged from Ethash (proof-of-work)\n"
 		}
 	case c.Clique != nil:
-		if c.TerminalTotalDifficulty == nil {
+		if c.Clique.PoCR {
+			banner += "Consensus: PoCR (proof-of-carbon-reduction)\n"
+		} else if c.TerminalTotalDifficulty == nil {
 			banner += "Consensus: Clique (proof-of-authority)\n"
 		} else if !c.TerminalTotalDifficultyPassed {
 			banner += "Consensus: Beacon (proof-of-stake), merging from Clique (proof-of-authority)\n"
