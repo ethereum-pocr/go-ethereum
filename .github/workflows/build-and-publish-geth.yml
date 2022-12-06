@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-20.04
 
     container:
       image: golang:latest
@@ -30,7 +30,7 @@ jobs:
       - name: publish geth latest version
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ github.token }}
           file: build/bin/geth
           asset_name: geth
           tag: ${{ github.ref }}

@@ -23,9 +23,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	cmath "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	// "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -83,6 +85,9 @@ type Message interface {
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
+	FeeSpent	 *big.Int // Amount of crypto spent by the caller as fees
+	FeeTransferred *big.Int // Amount of crypto received by the block sealer
+	FeeBurnt   *big.Int // Amount of crypto spent by the caller and burnt = FeeSpent - FeeTransferred
 	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
@@ -177,8 +182,8 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) (*ExecutionResult, error) {
-	return NewStateTransition(evm, msg, gp).TransitionDb()
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool, engine consensus.Engine) (*ExecutionResult, error) {
+	return NewStateTransition(evm, msg, gp).TransitionDb(engine)
 }
 
 // to returns the recipient of the message.
@@ -272,7 +277,7 @@ func (st *StateTransition) preCheck() error {
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
-func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+func (st *StateTransition) TransitionDb(engine consensus.Engine) (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
 	//
@@ -345,20 +350,27 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	}
 
+	received := new(big.Int).SetUint64(st.gasUsed())
+	received.Mul(received, effectiveTip)
+	spent := new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
+	burnt := new(big.Int).Sub(spent, received)
 	if st.evm.Config.NoBaseFee && st.gasFeeCap.Sign() == 0 && st.gasTipCap.Sign() == 0 {
 		// Skip fee payment when NoBaseFee is set and the fee fields
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
+		received = big.NewInt(0)
+		spent = big.NewInt(0)
+		burnt = big.NewInt(0)
 	} else {
-		fee := new(big.Int).SetUint64(st.gasUsed())
-		fee.Mul(fee, effectiveTip)
-		st.state.AddBalance(st.evm.Context.Coinbase, fee)
+		st.state.AddBalance(st.evm.Context.Coinbase, received)
 	}
-
 	return &ExecutionResult{
-		UsedGas:    st.gasUsed(),
-		Err:        vmerr,
-		ReturnData: ret,
+		UsedGas:        st.gasUsed(),
+		FeeSpent:       spent,
+		FeeTransferred: received,
+		FeeBurnt:       burnt,
+		Err:            vmerr,
+		ReturnData:     ret,
 	}, nil
 }
 

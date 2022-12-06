@@ -348,7 +348,7 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 }
 
 func (b *EthAPIBackend) Engine() consensus.Engine {
-	return b.eth.engine
+	return b.eth.Engine()
 }
 
 func (b *EthAPIBackend) CurrentHeader() *types.Header {

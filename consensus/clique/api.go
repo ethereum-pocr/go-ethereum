@@ -48,7 +48,7 @@ func (api *API) GetSnapshot(number *rpc.BlockNumber) (*Snapshot, error) {
 	if header == nil {
 		return nil, errUnknownBlock
 	}
-	return api.Clique.snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
+	return api.Clique.Snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
 }
 
 // GetSnapshotAtHash retrieves the state snapshot at a given block.
@@ -57,7 +57,7 @@ func (api *API) GetSnapshotAtHash(hash common.Hash) (*Snapshot, error) {
 	if header == nil {
 		return nil, errUnknownBlock
 	}
-	return api.Clique.snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
+	return api.Clique.Snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
 }
 
 // GetSigners retrieves the list of authorized signers at the specified block.
@@ -73,11 +73,11 @@ func (api *API) GetSigners(number *rpc.BlockNumber) ([]common.Address, error) {
 	if header == nil {
 		return nil, errUnknownBlock
 	}
-	snap, err := api.Clique.snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
+	snap, err := api.Clique.Snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
 	if err != nil {
 		return nil, err
 	}
-	return snap.signers(), nil
+	return snap.GetSigners(), nil
 }
 
 // GetSignersAtHash retrieves the list of authorized signers at the specified block.
@@ -86,11 +86,11 @@ func (api *API) GetSignersAtHash(hash common.Hash) ([]common.Address, error) {
 	if header == nil {
 		return nil, errUnknownBlock
 	}
-	snap, err := api.Clique.snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
+	snap, err := api.Clique.Snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
 	if err != nil {
 		return nil, err
 	}
-	return snap.signers(), nil
+	return snap.GetSigners(), nil
 }
 
 // Proposals returns the current proposals the node tries to uphold and vote on.
@@ -140,12 +140,12 @@ func (api *API) Status() (*status, error) {
 		diff      = uint64(0)
 		optimals  = 0
 	)
-	snap, err := api.Clique.snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
+	snap, err := api.Clique.Snapshot(api.Chain, header.Number.Uint64(), header.Hash(), nil)
 	if err != nil {
 		return nil, err
 	}
 	var (
-		signers = snap.signers()
+		signers = snap.GetSigners()
 		end     = header.Number.Uint64()
 		start   = end - numBlocks
 	)
