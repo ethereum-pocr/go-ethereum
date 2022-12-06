@@ -26,7 +26,7 @@ jobs:
         # We should not block the release based on unit tests stalling (since those are yet unstable)
         continue-on-error: true
         run: |
-          go test ./... -coverprofile cover.out
+          go test ./consensus/cliquepocr/... -coverprofile cover.out
       - name: publish geth latest version
         uses: svenstaro/upload-release-action@v2
         with:
