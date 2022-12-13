@@ -59,6 +59,9 @@ var sessionVariablesContractAddress = "0x000000000000000000000000000000000000010
 var sessionVariableTotalPocRCoins = "GeneratedPocRTotal"
 var zero = big.NewInt(0)
 var CTCUnit = big.NewInt(1e+18)
+var MinBlockBetweenAudit = big.NewInt((3600 / 4) * 24 * 365) // 1 year
+// var MinBlockBetweenAudit = big.NewInt(10) // 10 block for debugging
+var PenaltyOnOldFootprint int64 = 5 // In percent of the footprint to be added to the footprint value
 
 // var raceRankComputation = NewRaceRankComputation()
 
@@ -307,7 +310,7 @@ func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state
 
 	synchronizeSealers(c, chain, author, state, header)
 
-	log.Info("💵Sealer earnings", "block", header.Number, "node", author.String(), "rank", rank.FloatString(4), "blockReward", blockReward.String(), "feeAdjustment", feeAdjustment.String(), "burnt", burnt.String())
+	log.Info("💵 Sealer earnings", "block", header.Number, "node", author.String(), "rank", rank.FloatString(4), "blockReward", blockReward.String(), "feeAdjustment", feeAdjustment.String(), "burnt", burnt.String())
 }
 
 func getTotalCryptoBalance(state *state.StateDB) *big.Int {
@@ -336,7 +339,10 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 	allNodesFootprint := []*big.Int{}
 	for _, signerAddress := range signers {
 		// log.Debug("Signer found", "address", signerAddress)
-		f, err := contract.footprint(signerAddress)
+		// retrieve the last block and the footprint 
+		f, block, err := contract.footprint(signerAddress)
+		// apply a penalty if the age of the audit is greater than a multiple of number of blocks to incentivize redoing audits
+		f = calcCarbonFootprintAuditIncentive(f, block, header.Number)
 		if err == nil {
 			allNodesFootprint = append(allNodesFootprint, f)
 			// if the current sealer is our block author, keep its footprint
@@ -356,10 +362,35 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 	if err != nil {
 		return nil, big.NewRat(0, 1), 0, nil, err
 	}
+	log.Debug("Node ranking result", "signer", author, "rank", r)
 
 	M := getTotalCryptoBalance(state)
 
 	return footprint, r, N, M, nil
+}
+
+/*
+	Returns the penalized footprint based on the age of the last footprint
+	Per full year of age, apply a % of increase on the footprint
+	
+	result = footprint x (1 + nb * penalty%)
+	Calculated as footprint x (100 + penalty x nb) / 100, so the integer division happens last
+*/
+func calcCarbonFootprintAuditIncentive(footprint *big.Int, lastBlock *big.Int, currentBlock *big.Int) (*big.Int) {
+	// calulate the blocks elapsed since the audit
+	delta := new(big.Int).Sub(currentBlock, lastBlock)
+	if delta.Sign() <= 0 || footprint.Sign()<=0 {
+		return footprint
+	}
+	// calculate the number of full years since the last audit. Result is zero 
+	factor := new(big.Int).Div(delta, MinBlockBetweenAudit)
+	// calculate the ratio to apply : PenaltyOnOldFootprint% per years
+	factor.Mul(factor, big.NewInt(PenaltyOnOldFootprint))
+	factor.Add(factor, big.NewInt(100))
+	newFootprint := new(big.Int).Mul(footprint, factor)
+	newFootprint.Div(newFootprint, big.NewInt(100))
+	log.Debug("Result of the footprint penality", "initial", footprint, "factor", factor, "new footprint", newFootprint)
+	return newFootprint
 }
 
 // Calculate the fees that needs to be rmoved from the sealer because of the ranking ie has and the fees that have been burt in the EIP 1559
@@ -390,22 +421,6 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, header *ty
 	return reward, nil
 }
 
-// func (c *CliquePoCR) buildSealersList(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
-// 	log.Debug("buildSealersList", "header.Number", header.Number, "lastBlock", c.signersListLastBlock)
-// 	if header.Number != nil {
-// 		number := header.Number.Uint64()
-// 		if c.signersListLastBlock != number {
-// 			list, err := c.getSigners(chain, header, parents)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			c.signersList = list
-// 			log.Debug("buildSealersList", "list", c.signersList)
-// 			c.signersListLastBlock = number
-// 		}
-// 	}
-// 	return nil
-// }
 
 func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
 	number := header.Number.Uint64()
@@ -415,13 +430,8 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types
 	if err != nil {
 		return nil, err
 	}
-	// log.Info("getSigners", "snap", snap)
-	// If the block is a checkpoint block, verify the signer list
-	// if number%c.config.Epoch == 0 {
 	signersArray := snap.GetSigners()
 	return signersArray, nil
-	// }
-	// return nil, errors.New("Invalid Epoch when getting Signers list")
 }
 
 func contains(array []common.Address, value common.Address) (bool) {

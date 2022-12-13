@@ -4,6 +4,8 @@ import (
 	"errors"
 	// "math"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/log"
 	// "sort"
 	// "github.com/ethereum/go-ethereum/log"
 )
@@ -45,11 +47,6 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 		return nil, 0, errors.New("cannot rank zero node")
 	}
 	// Sorting is not necessary if we parse the total list of the nodes
-	// sort.Slice(nodesFootprint, func(a, b int) bool {
-	// 	// sort direction low before high.
-	// 	return nodesFootprint[a].Cmp(nodesFootprint[b]) < 0
-	// })
-
 	for i := 0; i < nbNodes; i++ {
 		// node footprint is lower than current node but not zero
 		if nodesFootprint[i].Cmp(footprint) == -1 && nodesFootprint[i].Cmp(zero) > 0 {
@@ -58,10 +55,8 @@ func (wp *RaceRankComputation) CalculateRanking(footprint *big.Int, nodesFootpri
 	}
 
 	rank = wp.getRanking(NbItemsAbove)
-	// log.Info("RaceRankComputation.CalculateRanking", "NbItemsAbove", NbItemsAbove)
-	// log.Debug("RaceRankComputation.CalculateRanking", "rank", rank)
-	// log.Debug("RaceRankComputation.CalculateRanking", "rank 9", wp.getRanking(9))
-	// log.Debug("RaceRankComputation.CalculateRanking", "rank 99", wp.getRanking(99))
+
+	log.Debug("Ranking calculation", "node footprint", footprint, "all footprints", nodesFootprint, "nb nodes above", NbItemsAbove, "rank", rank)
 
 	return rank, nbNodes, nil
 }
