@@ -8,10 +8,10 @@ do
 done
 
 
-if [ ! -f initialized ]; then
+if [ ! -f .ethereum/geth/LOCK ]; then
     geth init --datadir .ethereum /app/genesis.json
     # mv .ethereum/geth/nodekey .keystore/nodekey
-    echo initialized > initialized
+    #echo initialized > initialized
 fi
 networkid=$(grep chainId genesis.json | grep -Eo '[0-9]+')
 public_ip=$(/sbin/ip route|awk '/default/ { print $3 }')
