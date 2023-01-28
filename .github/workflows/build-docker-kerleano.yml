@@ -32,5 +32,8 @@ jobs:
           tags: ghcr.io/ethereum-pocr/go-ethereum/client-kerleano:2.0.0
           file: Dockerfile.client
           context: .
+          build-args:
+            - GENESIS_URL: https://github.com/ethereum-pocr/ethereum-pocr.github.io/releases/download/v2.0.0/kerleano.json
+            - BOOTNODES_URL: https://raw.githubusercontent.com/ethereum-pocr/kerleano/main/BOOTNODES
 
 
