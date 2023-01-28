@@ -37,7 +37,7 @@ jobs:
           overwrite: true
           body: "Release geth with pocr"
 
-  docker:
+  docker-base:
     runs-on: ubuntu-latest
 
     steps:
@@ -56,3 +56,7 @@ jobs:
           push: true
           tags: ghcr.io/ethereum-pocr/go-ethereum/base:latest
           context: .
+
+  docker-client-kerleano:
+    needs: docker-base
+    uses: ./.github/workflows/build-docker-kerleano.yml
