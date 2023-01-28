@@ -4,7 +4,7 @@ RUN apk add curl
 ARG GENESIS_URL=missing
 ARG BOOTNODES_URL=missing
 WORKDIR /app
-COPY dockerfiles/start.sh /app/start.sh
+COPY dockerfiles/*.sh /app
 RUN test ${GENESIS_URL} == "missing" && echo "PROVIDE ARG GENESIS_URL !" && exit 1 || echo "Downloading ${GENESIS_URL}"
 RUN test ${BOOTNODES_URL} == "missing" && echo "PROVIDE ARG BOOTNODES_URL !" && exit 1 || echo "Downloading ${BOOTNODES_URL}"
 RUN curl -L -o /app/genesis.json ${GENESIS_URL}
@@ -13,5 +13,5 @@ RUN curl -L -o /app/bootnodes.json ${BOOTNODES_URL}
 FROM ghcr.io/ethereum-pocr/go-ethereum/base:latest
 COPY --from=builder /app /app
 
-RUN chmod +x /app/start.sh
+RUN chmod +x /app/*.sh
 ENTRYPOINT ["/app/start.sh"]
