@@ -53,5 +53,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: int128/kaniko-action@v1
         with:
+          push: true
           tags: ghcr.io/ethereum-pocr/go-ethereum/base:latest
           context: .
