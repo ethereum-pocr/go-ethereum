@@ -36,3 +36,22 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           body: "Release geth with pocr"
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: docker/metadata-action@v3
+        id: metadata
+        with:
+          images: ghcr.io/${{ github.repository }}
+      - uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          tags: ghcr.io/ethereum-pocr/go-ethereum/base:latest
+          context: .
