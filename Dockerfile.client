@@ -1,4 +1,5 @@
-FROM curlimages/curl as builder
+FROM alpine as builder
+RUN apk add curl
 
 ARG GENESIS_URL=missing
 ARG BOOTNODES_URL=missing
