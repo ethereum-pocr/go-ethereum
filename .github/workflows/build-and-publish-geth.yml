@@ -3,9 +3,15 @@ name: Build and publish geth latest
 on:
   push:
     branches:
-    - master
+      - master
     tags:        
-    - v*
+      - v*
+    paths:
+      - "./**/*.go"
+      - "go.*"
+      - "*.go"
+      - "Dockerfile"
+      - ".github/workflows/build-and-publish-geth.yml"
 
 jobs:
   build:

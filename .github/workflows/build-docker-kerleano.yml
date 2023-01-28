@@ -9,6 +9,8 @@ on:
     paths:
       - "dockerfiles/**"
       - "Dockerfile.client"
+      - ".github/workflows/build-docker-kerleano.yml"
+      
   workflow_call:
 
 jobs:
