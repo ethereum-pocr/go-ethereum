@@ -1,0 +1,41 @@
+name: Build docker image for kerleano client
+
+on:
+  push:
+    branches:
+      - master
+    tags:        
+      - v*
+    paths:
+      - "dockerfiles/**"
+      - "Dockerfile.client"
+      - ".github/workflows/build-docker-pocrnet.yml"
+      
+  workflow_call:
+
+jobs:
+
+  docker-client-kerleano:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: docker/metadata-action@v3
+        id: metadata
+        with:
+          images: ghcr.io/${{ github.repository }}
+      - uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: int128/kaniko-action@v1
+        with:
+          push: true
+          tags: ghcr.io/ethereum-pocr/go-ethereum/client-kerleano:2.0.0
+          file: Dockerfile.client
+          context: .
+          build-args: |
+            GENESIS_URL=https://github.com/ethereum-pocr/ethereum-pocr.github.io/releases/download/main/pocrnet.json
+            BOOTNODES_URL=https://raw.githubusercontent.com/ethereum-pocr/pocrnet/main/BOOTNODES
+
+
