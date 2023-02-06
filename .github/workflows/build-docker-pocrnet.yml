@@ -31,7 +31,7 @@ jobs:
       - uses: int128/kaniko-action@v1
         with:
           push: true
-          tags: ghcr.io/ethereum-pocr/go-ethereum/client-pocrnet:${{ github.ref }}
+          tags: ghcr.io/ethereum-pocr/go-ethereum/client-pocrnet:${{ github.ref_name }}
           file: Dockerfile.client
           context: .
           build-args: |
