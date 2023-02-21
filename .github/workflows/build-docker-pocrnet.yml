@@ -35,7 +35,7 @@ jobs:
           file: Dockerfile.client
           context: .
           build-args: |
-            GENESIS_URL=https://github.com/ethereum-pocr/ethereum-pocr.github.io/releases/download/main/pocrnet.json
+            GENESIS_URL=https://github.com/ethereum-pocr/ethereum-pocr.github.io/releases/download/pocrnet/pocrnet.json
             BOOTNODES_URL=https://raw.githubusercontent.com/ethereum-pocr/pocrnet/main/BOOTNODES
 
 
