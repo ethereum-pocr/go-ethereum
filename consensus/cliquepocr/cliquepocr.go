@@ -233,7 +233,7 @@ func (c *CliquePoCR) Authorize(signer common.Address, signFn clique.SignerFn) {
 
 // blockPostProcessing will credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
-// included transactions. The reward will depends on the carbon footprint of the node.
+// included transactions. The reward will depends on the environmental footprint of the node.
 // newBlock (bool) is true when called by FinalizeAndAssemble ie when the block is to be created and signed by this node
 // else newBlock will be false when called by Finalize ie when called for an imported block signed by another node
 func blockPostProcessing(c *CliquePoCR, chain consensus.ChainHeaderReader, state *state.StateDB, header *types.Header, txs []*types.Transaction, newBlock bool) {
@@ -339,7 +339,7 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 	allNodesFootprint := []*big.Int{}
 	for _, signerAddress := range signers {
 		// log.Debug("Signer found", "address", signerAddress)
-		// retrieve the last block and the footprint 
+		// retrieve the last block and the footprint
 		f, block, err := contract.footprint(signerAddress)
 		// apply a penalty if the age of the audit is greater than a multiple of number of blocks to incentivize redoing audits
 		f = calcCarbonFootprintAuditIncentive(f, block, header.Number)
@@ -352,7 +352,7 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 		}
 	}
 
-	// a Zero carbon footprint means no footprint at all
+	// a Zero environmental footprint means no footprint at all
 	if footprint == nil || footprint.Cmp(zero) == 0 {
 		return nil, big.NewRat(0, 1), 0, nil, errors.New("sealer does not have a footprint")
 	}
@@ -372,17 +372,17 @@ func calcCarbonFootprintRanking(c *CliquePoCR, chain consensus.ChainHeaderReader
 /*
 	Returns the penalized footprint based on the age of the last footprint
 	Per full year of age, apply a % of increase on the footprint
-	
+
 	result = footprint x (1 + nb * penalty%)
 	Calculated as footprint x (100 + penalty x nb) / 100, so the integer division happens last
 */
-func calcCarbonFootprintAuditIncentive(footprint *big.Int, lastBlock *big.Int, currentBlock *big.Int) (*big.Int) {
+func calcCarbonFootprintAuditIncentive(footprint *big.Int, lastBlock *big.Int, currentBlock *big.Int) *big.Int {
 	// calulate the blocks elapsed since the audit
 	delta := new(big.Int).Sub(currentBlock, lastBlock)
-	if delta.Sign() <= 0 || footprint.Sign()<=0 {
+	if delta.Sign() <= 0 || footprint.Sign() <= 0 {
 		return footprint
 	}
-	// calculate the number of full years since the last audit. Result is zero 
+	// calculate the number of full years since the last audit. Result is zero
 	factor := new(big.Int).Div(delta, MinBlockBetweenAudit)
 	// calculate the ratio to apply : PenaltyOnOldFootprint% per years
 	factor.Mul(factor, big.NewInt(PenaltyOnOldFootprint))
@@ -421,7 +421,6 @@ func calcCarbonFootprintReward(c *CliquePoCR, address common.Address, header *ty
 	return reward, nil
 }
 
-
 func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) ([]common.Address, error) {
 	number := header.Number.Uint64()
 
@@ -434,41 +433,41 @@ func (c *CliquePoCR) getSigners(chain consensus.ChainHeaderReader, header *types
 	return signersArray, nil
 }
 
-func contains(array []common.Address, value common.Address) (bool) {
+func contains(array []common.Address, value common.Address) bool {
 	for _, v := range array {
 		if v == value {
-			return true;
+			return true
 		}
 	}
 	return false
 }
 
-func synchronizeSealers(c *CliquePoCR, chain consensus.ChainHeaderReader, author common.Address, state *state.StateDB, header *types.Header) (error) {
+func synchronizeSealers(c *CliquePoCR, chain consensus.ChainHeaderReader, author common.Address, state *state.StateDB, header *types.Header) error {
 	signers, err := c.getSigners(chain, header, nil)
 	if err != nil {
 		return err
 	}
-	 /*
-	- pseudo code
-	// start by removing missing sealers
-	for i = 0 to nbNodes-1
-			s = sealers[i]
-			e = isSealer[s]
-			if s not in snapshot.sealers then 
-					isSealer[s] = false
-					sealers[i] = zero
-			
-	// now force the replication of the snapshot
-	for i = 0 to snapshot.sealers.length-1
-			s = sealers[i]
-			e = isSealer[snapshot.sealers[i]]
-			if s != snapshot.sealers[i] then
-					 sealers[i] = snapshot.sealers[i]
-			if not e then
-					 isSealer[snapshot.sealers[i]] = true
-	
-	// finally update the number of nodes
-	nbNodes = snapshot.sealers.length    
+	/*
+		- pseudo code
+		// start by removing missing sealers
+		for i = 0 to nbNodes-1
+				s = sealers[i]
+				e = isSealer[s]
+				if s not in snapshot.sealers then
+						isSealer[s] = false
+						sealers[i] = zero
+
+		// now force the replication of the snapshot
+		for i = 0 to snapshot.sealers.length-1
+				s = sealers[i]
+				e = isSealer[snapshot.sealers[i]]
+				if s != snapshot.sealers[i] then
+						 sealers[i] = snapshot.sealers[i]
+				if not e then
+						 isSealer[snapshot.sealers[i]] = true
+
+		// finally update the number of nodes
+		nbNodes = snapshot.sealers.length
 	*/
 
 	contract := NewCarbonFootPrintContractForUpdate(author, chain.Config(), state, header)

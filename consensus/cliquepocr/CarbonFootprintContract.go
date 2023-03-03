@@ -25,17 +25,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // address of the PoCR smart contract, with the governance, the footprint, the auditors and the auditor's pledged amount
 var (
 	proofOfCarbonReductionContractAddress = "0x0000000000000000000000000000000000000100"
-	slotNbNodes = uint(0)
-	slotSealers = uint(1)
-	slotIsSealer = uint(2)
+	slotNbNodes                           = uint(0)
+	slotSealers                           = uint(1)
+	slotIsSealer                          = uint(2)
 )
 
 type CarbonFootprintContract struct {
@@ -61,11 +61,10 @@ func NewCarbonFootPrintContractForUpdate(nodeAddress common.Address, config *par
 	return contract
 }
 
-
 /**
 * "footprint(address)": "79f85816",
 * "footprintBlock(address)": "db80d723",
-*/
+ */
 func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.Int, *big.Int, error) {
 	addressString := ofNode.String()
 	addressString = addressString[2:]
@@ -74,69 +73,70 @@ func (contract *CarbonFootprintContract) footprint(ofNode common.Address) (*big.
 	result, _, err := runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
 
 	if err != nil {
-		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
+		log.Error("Impossible to get the environmental footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, nil, err
-	} 
+	}
 	footprint := common.BytesToHash(result).Big()
-	
+
 	input = common.Hex2Bytes("db80d723000000000000000000000000" + addressString)
 	result, _, err = runtime.Call(contract.ContractAddress, input, contract.RuntimeConfig)
 	if err != nil {
-		log.Error("Impossible to get the carbon footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
+		log.Error("Impossible to get the environmental footprint", "err", err.Error(), "node", ofNode.String(), "block", contract.RuntimeConfig.BlockNumber.Int64())
 		return nil, nil, err
-	} 
+	}
 	footprintBlock := common.BytesToHash(result).Big()
 
 	return footprint, footprintBlock, nil
 }
 
-func mappingLocation(slot uint, key common.Hash) (common.Hash) { 
+func mappingLocation(slot uint, key common.Hash) common.Hash {
 	_slot := common.BigToHash(big.NewInt(int64(slot))).Bytes()
 	_key := key.Bytes()
 	_location := common.BytesToHash(crypto.Keccak256(_key, _slot))
 	return _location
 }
 
-func (contract *CarbonFootprintContract) getMapping(slot uint, key common.Hash) (common.Hash) {
+func (contract *CarbonFootprintContract) getMapping(slot uint, key common.Hash) common.Hash {
 	_location := mappingLocation(slot, key)
 	v := contract.RuntimeConfig.State.GetState(contract.ContractAddress, _location)
 	return v
-} 
-	
+}
+
 func (contract *CarbonFootprintContract) setMapping(slot uint, key common.Hash, value common.Hash) {
 	_location := mappingLocation(slot, key)
 	contract.RuntimeConfig.State.SetState(contract.ContractAddress, _location, value)
-} 
+}
 
-func (contract *CarbonFootprintContract) getSealerAt(index int64) (common.Address) {
+func (contract *CarbonFootprintContract) getSealerAt(index int64) common.Address {
 	v := contract.getMapping(slotSealers, common.BigToHash(big.NewInt(index)))
 	return common.BytesToAddress(v.Big().Bytes())
-} 
+}
 
 func (contract *CarbonFootprintContract) setSealerAt(index int64, sealer common.Address) {
 	contract.setMapping(slotSealers, common.BigToHash(big.NewInt(index)), common.BytesToHash(sealer.Bytes()))
 }
 
-func (contract *CarbonFootprintContract) getIsSealerOf(sealer common.Address) (bool) {
+func (contract *CarbonFootprintContract) getIsSealerOf(sealer common.Address) bool {
 	v := contract.getMapping(slotIsSealer, common.BytesToHash(sealer.Bytes()))
 	return v.Big().Cmp(zero) != 0
-} 
+}
 
 func (contract *CarbonFootprintContract) setIsSealerOf(sealer common.Address, isSealer bool) {
 	_b := big.NewInt(0)
-	if isSealer {_b = big.NewInt(1)}
+	if isSealer {
+		_b = big.NewInt(1)
+	}
 	contract.setMapping(slotIsSealer, common.BytesToHash(sealer.Bytes()), common.BytesToHash(_b.Bytes()))
-} 
+}
 
-func (contract *CarbonFootprintContract) getNbNodes() (uint64) {
+func (contract *CarbonFootprintContract) getNbNodes() uint64 {
 	_slot := common.BigToHash(big.NewInt(int64(slotNbNodes)))
 	v := contract.RuntimeConfig.State.GetState(contract.ContractAddress, _slot)
 	return v.Big().Uint64()
-} 
+}
 
 func (contract *CarbonFootprintContract) setNbNodes(nbNodes int64) {
 	_slot := common.BigToHash(big.NewInt(int64(slotNbNodes)))
 	v := big.NewInt(int64(nbNodes))
 	contract.RuntimeConfig.State.SetState(contract.ContractAddress, _slot, common.BigToHash(v))
-} 
-
+}

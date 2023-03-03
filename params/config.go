@@ -428,7 +428,7 @@ func (c *ChainConfig) String() string {
 		}
 	case c.Clique != nil:
 		if c.Clique.PoCR {
-			banner += "Consensus: PoCR (proof-of-carbon-reduction)\n"
+			banner += "Consensus: PoCR (proof-of-climate-awareness)\n"
 		} else if c.TerminalTotalDifficulty == nil {
 			banner += "Consensus: Clique (proof-of-authority)\n"
 		} else if !c.TerminalTotalDifficultyPassed {

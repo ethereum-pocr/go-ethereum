@@ -1,5 +1,5 @@
 The cliquePocr module is a clique-compliant consensus engine that introduces a new reward mechanism defined on a smart contract deployed in the genesis file.
-The reward mechanism is described in the white paper 'Proof of Carbon reduction'.
+The reward mechanism is described in the white paper 'Proof of Climate awaReness'.
 
 The design of the cliquepocr new consensus is aiming at:
 1. Not impacting the clique engine (except for one configuration section, "ispocr", which is a boolean targetting the new cliquepocr consensus engine)
